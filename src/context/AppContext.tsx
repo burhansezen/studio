@@ -2,7 +2,6 @@
 
 import React, { createContext, useContext, useState, ReactNode, useMemo } from 'react';
 import type { Product, Transaction, SummaryCardData } from '@/lib/types';
-import { products as initialProducts, transactions as initialTransactions } from '@/lib/data';
 import { DollarSign, ShoppingBag, ArrowLeftRight } from 'lucide-react';
 
 type AppContextType = {
@@ -19,8 +18,8 @@ type AppContextType = {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {
-  const [products, setProducts] = useState<Product[]>(initialProducts);
-  const [transactions, setTransactions] = useState<Transaction[]>(initialTransactions);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
 
   const totalStock = useMemo(() => {
     return products.reduce((sum, product) => sum + product.stock, 0);
@@ -32,9 +31,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const netIncome = totalRevenue + totalReturns;
 
     return [
-      { title: 'Net Gelir', value: `₺${netIncome.toLocaleString('tr-TR')}`, change: '+20.1% geçen aydan', icon: DollarSign },
-      { title: 'Satışlar', value: `+₺${totalRevenue.toLocaleString('tr-TR')}`, change: '+180.1% geçen aydan', icon: ShoppingBag },
-      { title: 'İadeler', value: `₺${totalReturns.toLocaleString('tr-TR')}`, change: '+19% geçen aydan', icon: ArrowLeftRight },
+      { title: 'Net Gelir', value: `₺${netIncome.toLocaleString('tr-TR')}`, change: '', icon: DollarSign },
+      { title: 'Satışlar', value: `+₺${totalRevenue.toLocaleString('tr-TR')}`, change: '', icon: ShoppingBag },
+      { title: 'İadeler', value: `₺${totalReturns.toLocaleString('tr-TR')}`, change: '', icon: ArrowLeftRight },
     ];
   }, [transactions]);
 
