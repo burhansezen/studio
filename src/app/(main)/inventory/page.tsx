@@ -76,7 +76,7 @@ export default function InventoryPage() {
       "Stok Adedi": stock,
       "Satış Fiyatı (TRY)": sellingPrice,
       "Uyumluluk": compatibility,
-      "Son Alım Tarihi": lastPurchaseDate,
+      "Son Alım Tarihi": lastPurchaseDate.toDate().toLocaleDateString('tr-TR'),
     }));
     const csv = Papa.unparse(csvData);
     const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' });
@@ -187,7 +187,7 @@ export default function InventoryPage() {
                     {product.compatibility}
                   </TableCell>
                   <TableCell className="hidden md:table-cell">
-                    {product.lastPurchaseDate}
+                    {product.lastPurchaseDate.toDate().toLocaleDateString('tr-TR')}
                   </TableCell>
                   <TableCell>
                   <div className="flex gap-2 justify-end">
@@ -233,3 +233,5 @@ export default function InventoryPage() {
     </div>
   );
 }
+
+    

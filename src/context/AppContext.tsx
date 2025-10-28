@@ -75,7 +75,7 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 const useUserHook = () => {
     const { auth } = initializeFirebase();
-    const [user, setUser] = useState<User | null>(auth.currentUser);
+    const [user, setUser] = useState<User | null>(null);
     const [isUserLoading, setIsUserLoading] = useState(true);
 
     useEffect(() => {
@@ -235,12 +235,11 @@ const AppContextProviderContent = ({ children }: { children: ReactNode }) => {
         imageUrl = await uploadImage(productData.image[0]);
       }
       
-      const { image, lastPurchaseDate, ...rest } = productData;
+      const { image, ...rest } = productData;
 
       await addDoc(collection(firestore, 'products'), {
         ...rest,
         imageUrl,
-        lastPurchaseDate: lastPurchaseDate.toISOString().split('T')[0],
       });
 
       toast({
@@ -267,10 +266,9 @@ const AppContextProviderContent = ({ children }: { children: ReactNode }) => {
         imageUrl = await uploadImage(productData.image[0]);
       }
       
-      const { image, lastPurchaseDate, ...rest } = productData;
-      const updateData: Partial<Omit<ProductFormValues, 'image' | 'lastPurchaseDate'> & {imageUrl?: string, lastPurchaseDate: string}> = {
+      const { image, ...rest } = productData;
+      const updateData: Partial<Omit<ProductFormValues, 'image'> & {imageUrl?: string}> = {
           ...rest,
-          lastPurchaseDate: lastPurchaseDate.toISOString().split('T')[0],
       };
       if(imageUrl) {
         updateData.imageUrl = imageUrl;
@@ -492,3 +490,5 @@ export const useAppContext = () => {
   }
   return context;
 };
+
+    

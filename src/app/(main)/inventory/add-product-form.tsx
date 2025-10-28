@@ -88,7 +88,7 @@ export function ProductForm({ onSubmit, product }: ProductFormProps) {
         sellingPrice: product.sellingPrice,
         compatibility: product.compatibility,
         image: undefined,
-        lastPurchaseDate: new Date(product.lastPurchaseDate),
+        lastPurchaseDate: product.lastPurchaseDate.toDate(),
       });
     } else {
        form.reset({
@@ -239,3 +239,5 @@ export function ProductForm({ onSubmit, product }: ProductFormProps) {
     </Form>
   );
 }
+
+    

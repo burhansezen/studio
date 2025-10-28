@@ -10,7 +10,7 @@ export interface Product {
   sellingPrice: number;
   compatibility: string;
   imageUrl: string;
-  lastPurchaseDate: string;
+  lastPurchaseDate: Timestamp;
 }
 
 export interface Transaction {
@@ -29,3 +29,5 @@ export interface SummaryCardData {
   change: string;
   icon: LucideIcon;
 }
+
+    
