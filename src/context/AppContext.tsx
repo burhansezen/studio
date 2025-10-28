@@ -9,7 +9,6 @@ import {
   useCollection, 
   initializeFirebase,
   useMemoFirebase,
-  useUser,
 } from '@/firebase';
 import { 
   collection, 
@@ -22,14 +21,17 @@ import {
   updateDoc,
   deleteDoc,
   Timestamp,
-  signInWithEmailAndPassword,
-  signOut,
-  createUserWithEmailAndPassword,
 } from 'firebase/firestore';
+import { 
+    signInWithEmailAndPassword,
+    signOut,
+    createUserWithEmailAndPassword,
+    onAuthStateChanged,
+    type User
+} from 'firebase/auth';
 import { getStorage, ref, uploadString, getDownloadURL, deleteObject } from "firebase/storage";
 import { ProductFormValues } from '@/app/(main)/inventory/add-product-form';
 import { useRouter } from 'next/navigation';
-import type { User } from 'firebase/auth';
 
 type GroupedTransactions = {
   [date: string]: Transaction[];
@@ -71,10 +73,26 @@ type AppContextType = {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+const useUserHook = () => {
+    const { auth } = initializeFirebase();
+    const [user, setUser] = useState<User | null>(auth.currentUser);
+    const [isUserLoading, setIsUserLoading] = useState(true);
+
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
+            setUser(user);
+            setIsUserLoading(false);
+        });
+        return () => unsubscribe();
+    }, [auth]);
+
+    return { user, isUserLoading, auth };
+};
+
 const AppContextProviderContent = ({ children }: { children: ReactNode }) => {
   const { toast } = useToast();
-  const { firestore, auth } = initializeFirebase();
-  const { user, isUserLoading } = useUser();
+  const { firestore } = initializeFirebase();
+  const { user, isUserLoading, auth } = useUserHook();
   const router = useRouter();
 
   const productsQuery = useMemoFirebase(() => user ? query(collection(firestore, 'products'), orderBy('lastPurchaseDate', 'desc')) : null, [firestore, user]);
