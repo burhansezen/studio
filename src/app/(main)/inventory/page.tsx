@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import Papa from 'papaparse';
 import {
   Table,
@@ -20,10 +20,9 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PlusCircle, Download, Edit, Trash2 } from 'lucide-react';
-import { products as initialProducts } from '@/lib/data';
 import type { Product } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
-import { ProductForm, type ProductFormValues } from './product-form';
+import { ProductForm, type ProductFormValues } from './add-product-form';
 import {
   Dialog,
   DialogContent,
@@ -43,15 +42,12 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { useAppContext } from '@/context/AppContext';
 
 export default function InventoryPage() {
-  const [products, setProducts] = useState<Product[]>(initialProducts);
+  const { products, addProduct, updateProduct, deleteProduct, totalStock } = useAppContext();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-
-  const totalStock = useMemo(() => {
-    return products.reduce((sum, product) => sum + product.stock, 0);
-  }, [products]);
 
   const handleFormSubmit = (data: ProductFormValues) => {
     const reader = new FileReader();
@@ -60,21 +56,9 @@ export default function InventoryPage() {
       const { image, ...rest } = data;
       
       if (editingProduct) {
-        // Update existing product
-        setProducts(products.map(p => 
-          p.id === editingProduct.id 
-            ? { ...p, ...rest, imageUrl: image ? imageUrl : p.imageUrl }
-            : p
-        ));
+        updateProduct({ ...editingProduct, ...rest, imageUrl: image?.[0] ? imageUrl : editingProduct.imageUrl });
       } else {
-        // Add new product
-        const newProduct: Product = {
-          ...rest,
-          id: (products.length + 1).toString(),
-          lastPurchaseDate: new Date().toISOString().split('T')[0],
-          imageUrl: imageUrl,
-        };
-        setProducts((prevProducts) => [newProduct, ...prevProducts]);
+        addProduct({ ...rest, imageUrl });
       }
     };
 
@@ -83,9 +67,7 @@ export default function InventoryPage() {
     } else {
        if (editingProduct) {
         const { image, ...rest } = data;
-        setProducts(products.map(p => 
-          p.id === editingProduct.id ? { ...p, ...rest } : p
-        ));
+        updateProduct({ ...editingProduct, ...rest });
       }
     }
     
@@ -94,7 +76,7 @@ export default function InventoryPage() {
   };
 
   const handleDeleteProduct = (productId: string) => {
-    setProducts(products.filter((p) => p.id !== productId));
+    deleteProduct(productId);
   };
   
   const handleOpenDialog = (product: Product | null = null) => {

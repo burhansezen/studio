@@ -1,3 +1,5 @@
+'use client';
+
 import Image from 'next/image';
 import {
   Card,
@@ -9,10 +11,12 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ShoppingCart } from 'lucide-react';
-import { products } from '@/lib/data';
 import { Badge } from '@/components/ui/badge';
+import { useAppContext } from '@/context/AppContext';
 
 export default function SalesPage() {
+  const { products } = useAppContext();
+
   return (
     <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {products.map((product) => (

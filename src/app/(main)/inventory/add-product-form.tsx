@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { useForm } from 'react-hook-form';
@@ -21,7 +19,7 @@ import { useEffect } from 'react';
 const MAX_FILE_SIZE = 5000000; // 5MB
 const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
 
-const formSchema = z.object({
+const baseSchema = z.object({
   name: z.string().min(2, {
     message: 'Ürün adı en az 2 karakter olmalıdır.',
   }),
@@ -37,20 +35,18 @@ const formSchema = z.object({
   compatibility: z.string().min(2, {
     message: 'Uyumluluk bilgisi en az 2 karakter olmalıdır.',
   }),
-  image: z
-    .custom<FileList>()
-    .refine((files) => files?.length > 0, 'Resim dosyası gereklidir.')
-    .refine((files) => files?.[0]?.size <= MAX_FILE_SIZE, `Maksimum dosya boyutu 5MB'dir.`)
-    .refine(
-      (files) => ACCEPTED_IMAGE_TYPES.includes(files?.[0]?.type),
-      ".jpg, .jpeg, .png ve .webp formatları desteklenmektedir."
-    ),
 });
 
-const editFormSchema = formSchema.extend({
-  image: formSchema.shape.image.optional(),
-});
+const imageSchema = z.custom<FileList>()
+  .refine((files) => files && files.length > 0, 'Resim dosyası gereklidir.')
+  .refine((files) => files?.[0]?.size <= MAX_FILE_SIZE, `Maksimum dosya boyutu 5MB'dir.`)
+  .refine(
+    (files) => ACCEPTED_IMAGE_TYPES.includes(files?.[0]?.type),
+    ".jpg, .jpeg, .png ve .webp formatları desteklenmektedir."
+  );
 
+const formSchema = baseSchema.extend({ image: imageSchema });
+const editFormSchema = baseSchema.extend({ image: imageSchema.optional() });
 
 export type ProductFormValues = z.infer<typeof formSchema>;
 
@@ -60,8 +56,9 @@ type ProductFormProps = {
 };
 
 export function ProductForm({ onSubmit, product }: ProductFormProps) {
-  const form = useForm<ProductFormValues>({
-    resolver: zodResolver(product ? editFormSchema : formSchema),
+  const currentSchema = product ? editFormSchema : formSchema;
+  const form = useForm<z.infer<typeof currentSchema>>({
+    resolver: zodResolver(currentSchema),
     defaultValues: {
       name: '',
       stock: 0,
@@ -94,11 +91,10 @@ export function ProductForm({ onSubmit, product }: ProductFormProps) {
     }
   }, [product, form]);
 
-
   const fileRef = form.register("image");
 
-  function handleFormSubmit(values: z.infer<typeof formSchema>) {
-    onSubmit(values);
+  function handleFormSubmit(values: z.infer<typeof currentSchema>) {
+    onSubmit(values as ProductFormValues);
     form.reset();
   }
 
@@ -175,7 +171,7 @@ export function ProductForm({ onSubmit, product }: ProductFormProps) {
           name="image"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Resim</FormLabel>
+              <FormLabel>Resim {product && "(Değiştirmek istemiyorsanız boş bırakın)"}</FormLabel>
               <FormControl>
                 <Input type="file" accept="image/png, image/jpeg" {...fileRef} />
               </FormControl>

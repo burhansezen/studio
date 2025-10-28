@@ -1,3 +1,5 @@
+'use client';
+
 import {
   Card,
   CardContent,
@@ -13,11 +15,13 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { summaryData, transactions } from '@/lib/data';
 import type { Transaction } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { useAppContext } from '@/context/AppContext';
 
 export default function DashboardPage() {
+  const { summaryData, transactions } = useAppContext();
+
   return (
     <div className="flex flex-col gap-8">
       <section className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -70,7 +74,7 @@ export default function DashboardPage() {
               </TableHeader>
               <TableBody>
                 {transactions.map((transaction: Transaction) => (
-                  <TableRow key={transaction.id}>
+                  <TableRow key={transaction.id} className="hover:bg-muted/50">
                     <TableCell className="font-medium">
                       {transaction.productName}
                     </TableCell>
@@ -93,8 +97,8 @@ export default function DashboardPage() {
                       className={cn(
                         'text-right font-mono',
                         transaction.amount > 0
-                          ? 'text-green-500' // Consistent with positive financial indicators
-                          : 'text-destructive'
+                          ? 'text-green-500' 
+                          : transaction.amount < 0 ? 'text-destructive' : ''
                       )}
                     >
                       {transaction.amount.toLocaleString('tr-TR', {

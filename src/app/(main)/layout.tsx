@@ -71,19 +71,19 @@ export default function MainLayout({
   const bgImage = PlaceHolderImages.find((p) => p.id === 'logo-background');
 
   return (
-    <div className="relative min-h-screen">
-      {bgImage && (
-        <Image
-          src={bgImage.imageUrl}
-          alt={bgImage.description}
-          fill
-          className="object-cover opacity-5 -z-10"
-          data-ai-hint={bgImage.imageHint}
-          priority
-        />
-      )}
-      <PageHeader />
-      <MainContent>{children}</MainContent>
-    </div>
+      <div className="relative min-h-screen">
+        {bgImage && (
+          <Image
+            src={bgImage.imageUrl}
+            alt={bgImage.description}
+            fill
+            className="object-cover opacity-5 -z-10"
+            data-ai-hint={bgImage.imageHint}
+            priority
+          />
+        )}
+        <PageHeader />
+        <MainContent>{children}</MainContent>
+      </div>
   );
 }
