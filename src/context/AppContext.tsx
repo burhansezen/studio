@@ -103,27 +103,43 @@ const AppContextProviderContent = ({ children }: { children: ReactNode }) => {
   
   // Create user on first load
   useEffect(() => {
+    const initialEmail = 'szn@szn.com';
+    const initialPassword = '331742';
+    
     if (isUserLoading) return;
-    const createInitialUser = async () => {
+    
+    const setupInitialUser = async () => {
         try {
-            // Try to sign in. If it fails (user not found), create the user.
-            await signInWithEmailAndPassword(auth, 'szn@szn.com', '331742');
+            // Try to sign in first.
+            await signInWithEmailAndPassword(auth, initialEmail, initialPassword);
         } catch (error: any) {
+            // If the user does not exist, create it.
             if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
                 try {
-                    await createUserWithEmailAndPassword(auth, 'szn@szn.com', '331742');
+                    await createUserWithEmailAndPassword(auth, initialEmail, initialPassword);
+                    // The onAuthStateChanged listener will handle the new user state.
                 } catch (creationError) {
                     console.error("Error creating initial user:", creationError);
+                     toast({
+                        title: "Kritik Hata",
+                        description: "Başlangıç kullanıcısı oluşturulamadı.",
+                        variant: 'destructive',
+                    });
                 }
+            } else if (auth.currentUser) {
+                // Already logged in, do nothing
             } else {
-                 // console.error("Error signing in initial user:", error);
+                 console.error("Error signing in initial user:", error);
+                 // Don't toast here as it might be confusing for the end user.
             }
         }
     };
+
     if (!user) {
-        createInitialUser();
+        setupInitialUser();
     }
-  }, [auth, user, isUserLoading]);
+  }, [auth, user, isUserLoading, toast]);
+
 
   const totalStock = useMemo(() => {
     if (!products) return 0;
@@ -235,11 +251,12 @@ const AppContextProviderContent = ({ children }: { children: ReactNode }) => {
         imageUrl = await uploadImage(productData.image[0]);
       }
       
-      const { image, ...rest } = productData;
+      const { image, lastPurchaseDate, ...rest } = productData;
 
       await addDoc(collection(firestore, 'products'), {
         ...rest,
         imageUrl,
+        lastPurchaseDate: Timestamp.fromDate(lastPurchaseDate),
       });
 
       toast({
@@ -266,9 +283,10 @@ const AppContextProviderContent = ({ children }: { children: ReactNode }) => {
         imageUrl = await uploadImage(productData.image[0]);
       }
       
-      const { image, ...rest } = productData;
-      const updateData: Partial<Omit<ProductFormValues, 'image'> & {imageUrl?: string}> = {
+      const { image, lastPurchaseDate, ...rest } = productData;
+      const updateData: Partial<Omit<ProductFormValues, 'image'|'lastPurchaseDate'> & {imageUrl?: string, lastPurchaseDate: Timestamp}> = {
           ...rest,
+          lastPurchaseDate: Timestamp.fromDate(lastPurchaseDate),
       };
       if(imageUrl) {
         updateData.imageUrl = imageUrl;
