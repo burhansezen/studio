@@ -70,8 +70,8 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             {transactions.length > 0 ? (
-              <Accordion type="multiple" defaultValue={Object.keys(groupedTransactions).slice(0, 1)} className="w-full">
-                {Object.entries(groupedTransactions).map(([date, transactionsOnDate]) => (
+              <Accordion type="multiple" defaultValue={Object.keys(groupedTransactions).sort((a,b) => new Date(b).getTime() - new Date(a).getTime()).slice(0, 1)} className="w-full">
+                {Object.entries(groupedTransactions).sort(([dateA], [dateB]) => new Date(dateB).getTime() - new Date(dateA).getTime()).map(([date, transactionsOnDate]) => (
                   <AccordionItem value={date} key={date}>
                     <AccordionTrigger className="font-medium">
                       {new Date(date).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric', weekday: 'long' })} 
@@ -81,6 +81,7 @@ export default function DashboardPage() {
                        <Table>
                         <TableHeader>
                             <TableRow>
+                            <TableHead>Saat</TableHead>
                             <TableHead>Ürün</TableHead>
                             <TableHead>Tip</TableHead>
                             <TableHead>Miktar</TableHead>
@@ -90,6 +91,9 @@ export default function DashboardPage() {
                         <TableBody>
                             {transactionsOnDate.map((transaction: Transaction) => (
                             <TableRow key={transaction.id} className="hover:bg-muted/50">
+                                <TableCell className="font-mono text-muted-foreground">
+                                 {new Date(transaction.dateTime).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
+                                </TableCell>
                                 <TableCell className="font-medium">
                                 {transaction.productName}
                                 </TableCell>

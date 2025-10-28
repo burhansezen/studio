@@ -15,7 +15,7 @@ export interface Transaction {
   id: string;
   type: 'Alış' | 'Satış' | 'İade';
   productName: string;
-  date: string;
+  dateTime: string; // Changed from date to dateTime
   quantity: number;
   amount: number;
 }

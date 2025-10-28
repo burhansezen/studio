@@ -60,11 +60,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const groupedTransactions = useMemo(() => {
     return transactions.reduce((acc, transaction) => {
-      const date = transaction.date;
+      const date = transaction.dateTime.split('T')[0];
       if (!acc[date]) {
         acc[date] = [];
       }
       acc[date].push(transaction);
+      acc[date].sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime());
       return acc;
     }, {} as GroupedTransactions);
   }, [transactions]);
@@ -106,7 +107,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       id: `t${transactions.length + 1}`,
       type: 'Satış',
       productName: product.name,
-      date: new Date().toISOString().split('T')[0],
+      dateTime: new Date().toISOString(),
       quantity: 1,
       amount: product.sellingPrice,
     };
@@ -131,7 +132,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       id: `t${transactions.length + 1}`,
       type: 'İade',
       productName: product.name,
-      date: new Date().toISOString().split('T')[0],
+      dateTime: new Date().toISOString(),
       quantity: 1,
       amount: -product.sellingPrice, // Negative amount for return
     };
