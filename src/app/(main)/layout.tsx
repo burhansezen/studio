@@ -1,13 +1,13 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Car, LayoutDashboard, ShoppingCart, Archive } from 'lucide-react';
-
+import { Car, LayoutDashboard, ShoppingCart, Archive, LogOut, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { AppProvider } from '@/context/AppContext';
+import { useAppContext } from '@/context/AppContext';
+import { useEffect } from 'react';
 
 const navItems = [
   { href: '/dashboard', label: 'Panel Özeti', icon: LayoutDashboard },
@@ -17,6 +17,7 @@ const navItems = [
 
 function PageHeader() {
   const pathname = usePathname();
+  const { logout } = useAppContext();
 
   return (
     <header className="sticky top-0 z-10 flex h-16 items-center justify-between gap-4 border-b bg-background/80 px-4 backdrop-blur-sm sm:px-6 md:px-8">
@@ -55,7 +56,10 @@ function PageHeader() {
           </Button>
         ))}
       </nav>
-      {/* User menu can be added here */}
+       <Button variant="outline" size="sm" onClick={logout}>
+          <LogOut className="mr-2 h-4 w-4" />
+          Çıkış Yap
+        </Button>
     </header>
   );
 }
@@ -70,9 +74,24 @@ export default function MainLayout({
   children: React.ReactNode;
 }) {
   const bgImage = PlaceHolderImages.find((p) => p.id === 'logo-background');
+  const { user, isUserLoading } = useAppContext();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isUserLoading && !user) {
+      router.push('/login');
+    }
+  }, [user, isUserLoading, router]);
+
+  if (isUserLoading || !user) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
-    <AppProvider>
       <div className="relative min-h-screen">
         {bgImage && (
           <Image
@@ -87,6 +106,5 @@ export default function MainLayout({
         <PageHeader />
         <MainContent>{children}</MainContent>
       </div>
-    </AppProvider>
   );
 }

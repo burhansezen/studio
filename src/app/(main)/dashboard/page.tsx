@@ -24,10 +24,18 @@ import { Badge } from '@/components/ui/badge';
 import type { Transaction } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { useAppContext } from '@/context/AppContext';
-import { Search, TrendingDown, TrendingUp } from 'lucide-react';
+import { Search, TrendingDown, TrendingUp, Loader2 } from 'lucide-react';
 
 export default function DashboardPage() {
-  const { summaryData, groupedTransactions, transactions, topSellingProducts, topReturningProducts } = useAppContext();
+  const { summaryData, groupedTransactions, transactions, topSellingProducts, topReturningProducts, loading } = useAppContext();
+
+  if (loading.transactions || loading.products) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-8">

@@ -1,13 +1,15 @@
 'use client';
 
-import React, { createContext, useContext, useState, ReactNode, useMemo } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect } from 'react';
 import type { Product, Transaction, SummaryCardData } from '@/lib/types';
 import { DollarSign, ShoppingBag, ArrowLeftRight, TrendingUp } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { 
+  FirebaseProvider,
   useCollection, 
-  useFirebase,
+  initializeFirebase,
   useMemoFirebase,
+  useUser,
 } from '@/firebase';
 import { 
   collection, 
@@ -19,10 +21,15 @@ import {
   addDoc,
   updateDoc,
   deleteDoc,
-  Timestamp
+  Timestamp,
+  signInWithEmailAndPassword,
+  signOut,
+  createUserWithEmailAndPassword,
 } from 'firebase/firestore';
 import { getStorage, ref, uploadString, getDownloadURL, deleteObject } from "firebase/storage";
 import { ProductFormValues } from '@/app/(main)/inventory/add-product-form';
+import { useRouter } from 'next/navigation';
+import type { User } from 'firebase/auth';
 
 type GroupedTransactions = {
   [date: string]: Transaction[];
@@ -33,8 +40,15 @@ type ProductCount = {
   count: number;
 };
 
+type LoginCredentials = {
+    email: string;
+    password?: string;
+};
+
 
 type AppContextType = {
+  user: User | null;
+  isUserLoading: boolean;
   products: Product[] | null;
   transactions: Transaction[] | null;
   loading: {
@@ -51,20 +65,45 @@ type AppContextType = {
   deleteProduct: (productId: string) => Promise<void>;
   makeSale: (product: Product) => Promise<void>;
   makeReturn: (product: Product) => Promise<void>;
+  login: (credentials: LoginCredentials) => Promise<void>;
+  logout: () => Promise<void>;
 };
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-export const AppProvider = ({ children }: { children: ReactNode }) => {
+const AppContextProviderContent = ({ children }: { children: ReactNode }) => {
   const { toast } = useToast();
-  const { firestore } = useFirebase();
+  const { firestore, auth } = initializeFirebase();
+  const { user, isUserLoading } = useUser();
+  const router = useRouter();
 
-  const productsQuery = useMemoFirebase(() => firestore ? query(collection(firestore, 'products'), orderBy('lastPurchaseDate', 'desc')) : null, [firestore]);
+  const productsQuery = useMemoFirebase(() => user ? query(collection(firestore, 'products'), orderBy('lastPurchaseDate', 'desc')) : null, [firestore, user]);
   const { data: products, isLoading: productsLoading } = useCollection<Product>(productsQuery);
 
-  const transactionsQuery = useMemoFirebase(() => firestore ? query(collection(firestore, 'transactions'), orderBy('dateTime', 'desc')) : null, [firestore]);
+  const transactionsQuery = useMemoFirebase(() => user ? query(collection(firestore, 'transactions'), orderBy('dateTime', 'desc')) : null, [firestore, user]);
   const { data: transactions, isLoading: transactionsLoading } = useCollection<Transaction>(transactionsQuery);
   
+  // Create user on first load
+  useEffect(() => {
+    const createInitialUser = async () => {
+        try {
+            // Try to sign in. If it fails (user not found), create the user.
+            await signInWithEmailAndPassword(auth, 'szn@szn.com', '331742');
+        } catch (error: any) {
+            if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
+                try {
+                    await createUserWithEmailAndPassword(auth, 'szn@szn.com', '331742');
+                } catch (creationError) {
+                    console.error("Error creating initial user:", creationError);
+                }
+            } else {
+                 // console.error("Error signing in initial user:", error);
+            }
+        }
+    };
+    createInitialUser();
+  }, [auth]);
+
   const totalStock = useMemo(() => {
     if (!products) return 0;
     return products.reduce((sum, product) => sum + product.stock, 0);
@@ -359,8 +398,34 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const login = async ({ email, password }: LoginCredentials) => {
+    if (!password) { // Should not happen with form validation
+        toast({ title: 'Hata', description: 'Şifre gerekli.', variant: 'destructive' });
+        return;
+    }
+    try {
+        await signInWithEmailAndPassword(auth, email, password);
+        router.push('/dashboard');
+    } catch (error) {
+        console.error("Login Error: ", error);
+        toast({ title: 'Giriş Başarısız', description: 'E-posta veya şifre yanlış.', variant: 'destructive' });
+    }
+  };
 
-  const value = {
+  const logout = async () => {
+      try {
+          await signOut(auth);
+          router.push('/login');
+      } catch (error) {
+          console.error("Logout Error: ", error);
+          toast({ title: 'Hata', description: 'Çıkış yapılırken bir sorun oluştu.', variant: 'destructive' });
+      }
+  };
+
+
+  const value: AppContextType = {
+    user,
+    isUserLoading,
     products,
     transactions: transactions || [],
     loading: {
@@ -377,10 +442,24 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     deleteProduct,
     makeSale,
     makeReturn,
+    login,
+    logout,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+}
+
+
+export const AppProvider = ({ children }: { children: ReactNode }) => {
+  const { firebaseApp, auth, firestore } = initializeFirebase();
+
+  return (
+    <FirebaseProvider firebaseApp={firebaseApp} auth={auth} firestore={firestore}>
+      <AppContextProviderContent>{children}</AppContextProviderContent>
+    </FirebaseProvider>
+  );
 };
+
 
 export const useAppContext = () => {
   const context = useContext(AppContext);
