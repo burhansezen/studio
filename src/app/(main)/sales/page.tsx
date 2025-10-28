@@ -35,7 +35,7 @@ export default function SalesPage() {
           <CardFooter className="p-4 pt-0 flex flex-col items-start gap-4">
              <div className="flex justify-between w-full items-center">
                <div className="font-bold text-xl text-primary font-headline">
-                  {product.price.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}
+                  {product.sellingPrice.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}
                 </div>
                <Badge variant={product.stock < 10 ? 'destructive' : 'outline'}>
                  {product.stock} adet stokta

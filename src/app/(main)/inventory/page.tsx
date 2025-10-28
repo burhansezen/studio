@@ -32,7 +32,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 
-type NewProductData = Omit<Product, 'id' | 'lastPurchaseDate' | 'imageUrl'> & { image: File };
+type NewProductData = Omit<Product, 'id' | 'lastPurchaseDate' | 'imageUrl' | 'price'> & { image: File };
 
 export default function InventoryPage() {
   const [products, setProducts] = useState<Product[]>(initialProducts);
@@ -91,7 +91,7 @@ export default function InventoryPage() {
               </TableHead>
               <TableHead>İsim</TableHead>
               <TableHead>Stok</TableHead>
-              <TableHead>Fiyat</TableHead>
+              <TableHead>Satış Fiyatı</TableHead>
               <TableHead>Uyumluluk</TableHead>
               <TableHead>Son Alım Tarihi</TableHead>
             </TableRow>
@@ -116,7 +116,7 @@ export default function InventoryPage() {
                   </Badge>
                 </TableCell>
                 <TableCell className="font-mono">
-                  {product.price.toLocaleString('tr-TR', {
+                  {product.sellingPrice.toLocaleString('tr-TR', {
                     style: 'currency',
                     currency: 'TRY',
                   })}

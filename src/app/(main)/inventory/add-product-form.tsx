@@ -25,8 +25,11 @@ const formSchema = z.object({
   stock: z.coerce.number().int().min(0, {
     message: 'Stok adedi 0 veya daha fazla olmalıdır.',
   }),
-  price: z.coerce.number().min(0, {
-    message: 'Fiyat 0 veya daha fazla olmalıdır.',
+  purchasePrice: z.coerce.number().min(0, {
+    message: 'Alış fiyatı 0 veya daha fazla olmalıdır.',
+  }),
+  sellingPrice: z.coerce.number().min(0, {
+    message: 'Satış fiyatı 0 veya daha fazla olmalıdır.',
   }),
   compatibility: z.string().min(2, {
     message: 'Uyumluluk bilgisi en az 2 karakter olmalıdır.',
@@ -42,7 +45,7 @@ const formSchema = z.object({
 });
 
 type AddProductFormProps = {
-  onAddProduct: (product: Omit<Product, 'id' | 'lastPurchaseDate' | 'imageUrl'> & { image: File }) => void;
+  onAddProduct: (product: Omit<Product, 'id' | 'lastPurchaseDate' | 'imageUrl' | 'price'> & { image: File }) => void;
 };
 
 export function AddProductForm({ onAddProduct }: AddProductFormProps) {
@@ -51,7 +54,8 @@ export function AddProductForm({ onAddProduct }: AddProductFormProps) {
     defaultValues: {
       name: '',
       stock: 0,
-      price: 0,
+      purchasePrice: 0,
+      sellingPrice: 0,
       compatibility: '',
       image: undefined,
     },
@@ -95,10 +99,23 @@ export function AddProductForm({ onAddProduct }: AddProductFormProps) {
         />
         <FormField
           control={form.control}
-          name="price"
+          name="purchasePrice"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Fiyat (₺)</FormLabel>
+              <FormLabel>Alış Fiyatı (₺)</FormLabel>
+              <FormControl>
+                <Input type="number" placeholder="Örn: 12000" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="sellingPrice"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Satış Fiyatı (₺)</FormLabel>
               <FormControl>
                 <Input type="number" placeholder="Örn: 15000" {...field} />
               </FormControl>
