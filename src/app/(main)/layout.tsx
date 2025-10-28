@@ -5,19 +5,9 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Car, LayoutDashboard, ShoppingCart, Archive } from 'lucide-react';
 
-import {
-  SidebarProvider,
-  Sidebar,
-  SidebarHeader,
-  SidebarContent,
-  SidebarMenu,
-  SidebarMenuItem,
-  SidebarMenuButton,
-  SidebarTrigger,
-  useSidebar,
-} from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { cn } from '@/lib/utils';
 
 const navItems = [
   { href: '/dashboard', label: 'Panel Özeti', icon: LayoutDashboard },
@@ -27,61 +17,51 @@ const navItems = [
 
 function PageHeader() {
   const pathname = usePathname();
-  const currentNav = navItems.find((item) => pathname.startsWith(item.href));
 
   return (
     <header className="sticky top-0 z-10 flex h-16 items-center justify-between gap-4 border-b bg-background/80 px-4 backdrop-blur-sm sm:px-6 md:px-8">
       <div className="flex items-center gap-4">
-        <SidebarTrigger className="md:hidden" />
-        <h1 className="text-xl font-headline font-semibold text-foreground">
-          {currentNav?.label || 'SZN Auto Manager'}
-        </h1>
+        <Link href="/dashboard" className="flex items-center gap-2.5">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="bg-primary/10 text-primary hover:bg-primary/20 size-10 rounded-lg"
+            aria-label="Anasayfa"
+          >
+            <Car className="size-6" />
+          </Button>
+          <div className="flex flex-col">
+            <h2 className="font-headline text-lg font-semibold tracking-tight text-foreground">
+              SZN Auto
+            </h2>
+            <p className="text-xs text-foreground/70">
+              Yönetim Paneli
+            </p>
+          </div>
+        </Link>
       </div>
+      <nav className="hidden items-center gap-2 md:flex">
+        {navItems.map((item) => (
+          <Button
+            key={item.href}
+            asChild
+            variant={pathname.startsWith(item.href) ? 'secondary' : 'ghost'}
+            className="font-headline"
+          >
+            <Link href={item.href}>
+              <item.icon className="mr-2 h-4 w-4" />
+              {item.label}
+            </Link>
+          </Button>
+        ))}
+      </nav>
       {/* User menu can be added here */}
     </header>
   );
 }
 
 function MainContent({ children }: { children: React.ReactNode }) {
-  const { state } = useSidebar();
-  return (
-    <main
-      className="transition-[margin-left] duration-300 ease-in-out"
-      style={{
-        marginLeft:
-          state === 'expanded'
-            ? 'var(--sidebar-width)'
-            : 'var(--sidebar-width-icon)',
-      }}
-    >
-      <PageHeader />
-      <div className="p-4 sm:p-6 lg:p-8">{children}</div>
-    </main>
-  );
-}
-
-function SideMenu() {
-  const pathname = usePathname();
-  return (
-    <SidebarMenu>
-      {navItems.map((item) => (
-        <SidebarMenuItem key={item.href}>
-          <Link href={item.href} legacyBehavior passHref>
-            <SidebarMenuButton
-              isActive={pathname.startsWith(item.href)}
-              tooltip={{
-                children: item.label,
-                className: 'font-headline',
-              }}
-            >
-              <item.icon />
-              <span>{item.label}</span>
-            </SidebarMenuButton>
-          </Link>
-        </SidebarMenuItem>
-      ))}
-    </SidebarMenu>
-  );
+  return <div className="p-4 sm:p-6 lg:p-8">{children}</div>;
 }
 
 export default function MainLayout({
@@ -92,45 +72,19 @@ export default function MainLayout({
   const bgImage = PlaceHolderImages.find((p) => p.id === 'logo-background');
 
   return (
-    <SidebarProvider>
-      <div className="relative min-h-screen">
-        {bgImage && (
-          <Image
-            src={bgImage.imageUrl}
-            alt={bgImage.description}
-            fill
-            className="object-cover opacity-5 -z-10"
-            data-ai-hint={bgImage.imageHint}
-            priority
-          />
-        )}
-        <Sidebar>
-          <SidebarHeader>
-            <Link href="/dashboard" className="flex items-center gap-2.5">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="bg-primary/10 text-primary hover:bg-primary/20 size-10 rounded-lg"
-                aria-label="Anasayfa"
-              >
-                <Car className="size-6" />
-              </Button>
-              <div className="flex flex-col">
-                <h2 className="font-headline text-lg font-semibold tracking-tight text-sidebar-foreground">
-                  SZN Auto
-                </h2>
-                <p className="text-xs text-sidebar-foreground/70">
-                  Yönetim Paneli
-                </p>
-              </div>
-            </Link>
-          </SidebarHeader>
-          <SidebarContent>
-            <SideMenu />
-          </SidebarContent>
-        </Sidebar>
-        <MainContent>{children}</MainContent>
-      </div>
-    </SidebarProvider>
+    <div className="relative min-h-screen">
+      {bgImage && (
+        <Image
+          src={bgImage.imageUrl}
+          alt={bgImage.description}
+          fill
+          className="object-cover opacity-5 -z-10"
+          data-ai-hint={bgImage.imageHint}
+          priority
+        />
+      )}
+      <PageHeader />
+      <MainContent>{children}</MainContent>
+    </div>
   );
 }
