@@ -1,7 +1,8 @@
 'use client';
 
 import Image from 'next/image';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import Papa from 'papaparse';
 import {
   Table,
   TableBody,
@@ -18,11 +19,11 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { PlusCircle } from 'lucide-react';
+import { PlusCircle, Download, Edit, Trash2 } from 'lucide-react';
 import { products as initialProducts } from '@/lib/data';
 import type { Product } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
-import { AddProductForm } from './add-product-form';
+import { ProductForm, type ProductFormValues } from './product-form';
 import {
   Dialog,
   DialogContent,
@@ -31,107 +32,226 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-
-type NewProductData = Omit<Product, 'id' | 'lastPurchaseDate' | 'imageUrl' | 'price'> & { image: File };
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 export default function InventoryPage() {
   const [products, setProducts] = useState<Product[]>(initialProducts);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
-  const handleAddProduct = (newProductData: NewProductData) => {
+  const totalStock = useMemo(() => {
+    return products.reduce((sum, product) => sum + product.stock, 0);
+  }, [products]);
+
+  const handleFormSubmit = (data: ProductFormValues) => {
     const reader = new FileReader();
     reader.onload = (e) => {
       const imageUrl = e.target?.result as string;
-      const { image, ...rest } = newProductData;
-      const productToAdd: Product = {
-        ...rest,
-        id: (products.length + 1).toString(),
-        lastPurchaseDate: new Date().toISOString().split('T')[0],
-        imageUrl: imageUrl,
-      };
-      setProducts((prevProducts) => [productToAdd, ...prevProducts]);
+      const { image, ...rest } = data;
+      
+      if (editingProduct) {
+        // Update existing product
+        setProducts(products.map(p => 
+          p.id === editingProduct.id 
+            ? { ...p, ...rest, imageUrl: image ? imageUrl : p.imageUrl }
+            : p
+        ));
+      } else {
+        // Add new product
+        const newProduct: Product = {
+          ...rest,
+          id: (products.length + 1).toString(),
+          lastPurchaseDate: new Date().toISOString().split('T')[0],
+          imageUrl: imageUrl,
+        };
+        setProducts((prevProducts) => [newProduct, ...prevProducts]);
+      }
     };
-    reader.readAsDataURL(newProductData.image);
-    setIsDialogOpen(false);
+
+    if (data.image && data.image.length > 0) {
+      reader.readAsDataURL(data.image[0]);
+    } else {
+       if (editingProduct) {
+        const { image, ...rest } = data;
+        setProducts(products.map(p => 
+          p.id === editingProduct.id ? { ...p, ...rest } : p
+        ));
+      }
+    }
+    
+    setDialogOpen(false);
+    setEditingProduct(null);
   };
 
+  const handleDeleteProduct = (productId: string) => {
+    setProducts(products.filter((p) => p.id !== productId));
+  };
+  
+  const handleOpenDialog = (product: Product | null = null) => {
+    setEditingProduct(product);
+    setDialogOpen(true);
+  }
+
+  const handleExport = () => {
+    const csvData = products.map(({ name, stock, sellingPrice, compatibility, lastPurchaseDate }) => ({
+      "Ürün Adı": name,
+      "Stok Adedi": stock,
+      "Satış Fiyatı (TRY)": sellingPrice,
+      "Uyumluluk": compatibility,
+      "Son Alım Tarihi": lastPurchaseDate,
+    }));
+    const csv = Papa.unparse(csvData);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.setAttribute('download', 'stok_durumu.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <div>
-          <CardTitle className="font-headline">Envanter Yönetimi</CardTitle>
-          <CardDescription>
-            Stoktaki ürünleri görüntüleyin ve yeni alımları kaydedin.
-          </CardDescription>
-        </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Ürün Ekle
+    <div className="flex flex-col gap-6">
+       <Card className="w-fit">
+          <CardHeader className="pb-2">
+            <CardDescription>Toplam Stok</CardDescription>
+            <CardTitle className="text-4xl font-bold font-headline">{totalStock} adet</CardTitle>
+          </CardHeader>
+        </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle className="font-headline">Envanter Yönetimi</CardTitle>
+            <CardDescription>
+              Stoktaki ürünleri görüntüleyin, yönetin ve dışa aktarın.
+            </CardDescription>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={handleExport}>
+              <Download className="mr-2 h-4 w-4" />
+              Excel'e Aktar
             </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>Yeni Ürün Ekle</DialogTitle>
-              <DialogDescription>
-                Yeni ürün bilgilerini girin ve envantere ekleyin.
-              </DialogDescription>
-            </DialogHeader>
-            <AddProductForm onAddProduct={handleAddProduct} />
-          </DialogContent>
-        </Dialog>
-      </CardHeader>
-      <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="hidden w-[100px] sm:table-cell">
-                <span className="sr-only">Resim</span>
-              </TableHead>
-              <TableHead>İsim</TableHead>
-              <TableHead>Stok</TableHead>
-              <TableHead>Satış Fiyatı</TableHead>
-              <TableHead>Uyumluluk</TableHead>
-              <TableHead>Son Alım Tarihi</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {products.map((product) => (
-              <TableRow key={product.id}>
-                <TableCell className="hidden sm:table-cell">
-                  <Image
-                    alt={product.name}
-                    className="aspect-square rounded-md object-cover"
-                    height="64"
-                    src={product.imageUrl}
-                    width="64"
-                    data-ai-hint="car part"
-                  />
-                </TableCell>
-                <TableCell className="font-medium">{product.name}</TableCell>
-                <TableCell>
-                  <Badge variant={product.stock < 10 ? 'destructive' : 'secondary'}>
-                    {product.stock} adet
-                  </Badge>
-                </TableCell>
-                <TableCell className="font-mono">
-                  {product.sellingPrice.toLocaleString('tr-TR', {
-                    style: 'currency',
-                    currency: 'TRY',
-                  })}
-                </TableCell>
-                <TableCell className="hidden md:table-cell">
-                  {product.compatibility}
-                </TableCell>
-                <TableCell className="hidden md:table-cell">
-                  {product.lastPurchaseDate}
-                </TableCell>
+            <Dialog open={dialogOpen} onOpenChange={(open) => {
+              if (!open) setEditingProduct(null);
+              setDialogOpen(open);
+            }}>
+              <DialogTrigger asChild>
+                <Button onClick={() => handleOpenDialog()}>
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Ürün Ekle
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>{editingProduct ? 'Ürünü Düzenle' : 'Yeni Ürün Ekle'}</DialogTitle>
+                  <DialogDescription>
+                    {editingProduct ? 'Ürün bilgilerini güncelleyin.' : 'Yeni ürün bilgilerini girin ve envantere ekleyin.'}
+                  </DialogDescription>
+                </DialogHeader>
+                <ProductForm
+                  onSubmit={handleFormSubmit}
+                  product={editingProduct}
+                />
+              </DialogContent>
+            </Dialog>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="hidden w-[100px] sm:table-cell">
+                  <span className="sr-only">Resim</span>
+                </TableHead>
+                <TableHead>İsim</TableHead>
+                <TableHead>Stok</TableHead>
+                <TableHead>Satış Fiyatı</TableHead>
+                <TableHead>Uyumluluk</TableHead>
+                <TableHead>Son Alım Tarihi</TableHead>
+                <TableHead>
+                  <span className="sr-only">Eylemler</span>
+                </TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
+            </TableHeader>
+            <TableBody>
+              {products.map((product) => (
+                <TableRow key={product.id}>
+                  <TableCell className="hidden sm:table-cell">
+                    <Image
+                      alt={product.name}
+                      className="aspect-square rounded-md object-cover"
+                      height="64"
+                      src={product.imageUrl}
+                      width="64"
+                      data-ai-hint="car part"
+                    />
+                  </TableCell>
+                  <TableCell className="font-medium">{product.name}</TableCell>
+                  <TableCell>
+                    <Badge variant={product.stock < 10 ? 'destructive' : 'secondary'}>
+                      {product.stock} adet
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="font-mono">
+                    {product.sellingPrice.toLocaleString('tr-TR', {
+                      style: 'currency',
+                      currency: 'TRY',
+                    })}
+                  </TableCell>
+                  <TableCell className="hidden md:table-cell">
+                    {product.compatibility}
+                  </TableCell>
+                  <TableCell className="hidden md:table-cell">
+                    {product.lastPurchaseDate}
+                  </TableCell>
+                  <TableCell>
+                  <div className="flex gap-2 justify-end">
+                      <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(product)}>
+                        <Edit className="h-4 w-4" />
+                        <span className="sr-only">Düzenle</span>
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                           <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+                            <Trash2 className="h-4 w-4" />
+                            <span className="sr-only">Sil</span>
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Emin misiniz?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Bu işlem geri alınamaz. Bu, ürünü envanterinizden kalıcı olarak silecektir.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>İptal</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleDeleteProduct(product.id)}>
+                              Sil
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
