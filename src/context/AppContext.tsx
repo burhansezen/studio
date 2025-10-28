@@ -14,6 +14,7 @@ type AppContextType = {
   updateProduct: (productData: Product) => void;
   deleteProduct: (productId: string) => void;
   makeSale: (product: Product) => void;
+  makeReturn: (product: Product) => void;
 };
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -88,6 +89,33 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
+   const makeReturn = (product: Product) => {
+    // Increase stock
+    setProducts(prevProducts =>
+      prevProducts.map(p =>
+        p.id === product.id ? { ...p, stock: p.stock + 1 } : p
+      )
+    );
+
+    // Add return transaction
+    const newTransaction: Transaction = {
+      id: `t${transactions.length + 1}`,
+      type: 'İade',
+      productName: product.name,
+      date: new Date().toISOString().split('T')[0],
+      quantity: 1,
+      amount: -product.sellingPrice, // Negative amount for return
+    };
+    setTransactions(prevTransactions => [newTransaction, ...prevTransactions]);
+    
+    toast({
+      title: "İade Başarılı",
+      description: `${product.name} ürününden 1 adet iade alındı.`,
+      variant: 'destructive',
+    });
+  };
+
+
   const value = {
     products,
     transactions,
@@ -97,6 +125,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     updateProduct,
     deleteProduct,
     makeSale,
+    makeReturn,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

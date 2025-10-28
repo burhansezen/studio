@@ -19,7 +19,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Download, Edit, Trash2 } from 'lucide-react';
+import { PlusCircle, Download, Edit, Trash2, Undo2 } from 'lucide-react';
 import type { Product } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { ProductForm, type ProductFormValues } from './add-product-form';
@@ -45,7 +45,7 @@ import {
 import { useAppContext } from '@/context/AppContext';
 
 export default function InventoryPage() {
-  const { products, addProduct, updateProduct, deleteProduct, totalStock } = useAppContext();
+  const { products, addProduct, updateProduct, deleteProduct, totalStock, makeReturn } = useAppContext();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
@@ -200,6 +200,10 @@ export default function InventoryPage() {
                   </TableCell>
                   <TableCell>
                   <div className="flex gap-2 justify-end">
+                      <Button variant="ghost" size="icon" title="İade Al" onClick={() => makeReturn(product)}>
+                        <Undo2 className="h-4 w-4" />
+                        <span className="sr-only">İade Al</span>
+                      </Button>
                       <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(product)}>
                         <Edit className="h-4 w-4" />
                         <span className="sr-only">Düzenle</span>
