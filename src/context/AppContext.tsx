@@ -9,6 +9,11 @@ type GroupedTransactions = {
   [date: string]: Transaction[];
 };
 
+type ProductCount = {
+  productName: string;
+  count: number;
+};
+
 
 type AppContextType = {
   products: Product[];
@@ -16,6 +21,8 @@ type AppContextType = {
   summaryData: SummaryCardData[];
   totalStock: number;
   groupedTransactions: GroupedTransactions;
+  topSellingProducts: ProductCount[];
+  topReturningProducts: ProductCount[];
   addProduct: (productData: Omit<Product, 'id' | 'lastPurchaseDate'>) => void;
   updateProduct: (productData: Product) => void;
   deleteProduct: (productId: string) => void;
@@ -68,6 +75,32 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       acc[date].sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime());
       return acc;
     }, {} as GroupedTransactions);
+  }, [transactions]);
+
+  const topSellingProducts = useMemo(() => {
+    const sales = transactions.filter(t => t.type === 'Satış');
+    const productCounts = sales.reduce((acc, sale) => {
+      acc[sale.productName] = (acc[sale.productName] || 0) + sale.quantity;
+      return acc;
+    }, {} as Record<string, number>);
+
+    return Object.entries(productCounts)
+      .map(([productName, count]) => ({ productName, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+  }, [transactions]);
+
+  const topReturningProducts = useMemo(() => {
+    const returns = transactions.filter(t => t.type === 'İade');
+    const productCounts = returns.reduce((acc, ret) => {
+      acc[ret.productName] = (acc[ret.productName] || 0) + ret.quantity;
+      return acc;
+    }, {} as Record<string, number>);
+
+    return Object.entries(productCounts)
+      .map(([productName, count]) => ({ productName, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
   }, [transactions]);
 
 
@@ -152,6 +185,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     summaryData,
     totalStock,
     groupedTransactions,
+    topSellingProducts,
+    topReturningProducts,
     addProduct,
     updateProduct,
     deleteProduct,

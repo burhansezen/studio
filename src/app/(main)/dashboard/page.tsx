@@ -24,10 +24,10 @@ import { Badge } from '@/components/ui/badge';
 import type { Transaction } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { useAppContext } from '@/context/AppContext';
-import { Search } from 'lucide-react';
+import { Search, TrendingDown, TrendingUp } from 'lucide-react';
 
 export default function DashboardPage() {
-  const { summaryData, groupedTransactions, transactions } = useAppContext();
+  const { summaryData, groupedTransactions, transactions, topSellingProducts, topReturningProducts } = useAppContext();
 
   return (
     <div className="flex flex-col gap-8">
@@ -61,6 +61,53 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         ))}
+      </section>
+
+      <section className="grid gap-6 lg:grid-cols-2">
+         <Card>
+          <CardHeader>
+            <CardTitle className="font-headline flex items-center gap-2">
+              <TrendingUp className="size-5 text-green-500" />
+              En Çok Satan Ürünler
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {topSellingProducts.length > 0 ? (
+            <ul className="space-y-3">
+              {topSellingProducts.map(item => (
+                <li key={item.productName} className="flex justify-between items-center text-sm">
+                  <span>{item.productName}</span>
+                  <Badge variant="secondary">{item.count} adet</Badge>
+                </li>
+              ))}
+            </ul>
+            ) : (
+                <p className="text-sm text-muted-foreground text-center py-4">Henüz satış verisi yok.</p>
+            )}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="font-headline flex items-center gap-2">
+                <TrendingDown className="size-5 text-destructive" />
+                En Çok İade Edilen Ürünler
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+             {topReturningProducts.length > 0 ? (
+            <ul className="space-y-3">
+              {topReturningProducts.map(item => (
+                <li key={item.productName} className="flex justify-between items-center text-sm">
+                  <span>{item.productName}</span>
+                  <Badge variant="destructive">{item.count} adet</Badge>
+                </li>
+              ))}
+            </ul>
+            ) : (
+                <p className="text-sm text-muted-foreground text-center py-4">Henüz iade verisi yok.</p>
+            )}
+          </CardContent>
+        </Card>
       </section>
 
       <section>
