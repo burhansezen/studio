@@ -19,7 +19,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Download, Edit, Trash2, Undo2 } from 'lucide-react';
+import { PlusCircle, Download, Edit, Trash2, Undo2, Loader2 } from 'lucide-react';
 import type { Product } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { ProductForm, type ProductFormValues } from './add-product-form';
@@ -45,30 +45,15 @@ import {
 import { useAppContext } from '@/context/AppContext';
 
 export default function InventoryPage() {
-  const { products, addProduct, updateProduct, deleteProduct, totalStock, makeReturn } = useAppContext();
+  const { products, addProduct, updateProduct, deleteProduct, totalStock, makeReturn, loading } = useAppContext();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
-  const handleFormSubmit = (data: ProductFormValues) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const imageUrl = e.target?.result as string;
-      const { image, ...rest } = data;
-      
-      if (editingProduct) {
-        updateProduct({ ...editingProduct, ...rest, imageUrl: image?.[0] ? imageUrl : editingProduct.imageUrl });
-      } else {
-        addProduct({ ...rest, imageUrl });
-      }
-    };
-
-    if (data.image && data.image.length > 0) {
-      reader.readAsDataURL(data.image[0]);
+  const handleFormSubmit = async (data: ProductFormValues) => {
+    if (editingProduct) {
+      await updateProduct(editingProduct.id, data);
     } else {
-       if (editingProduct) {
-        const { image, ...rest } = data;
-        updateProduct({ ...editingProduct, ...rest });
-      }
+      await addProduct(data);
     }
     
     setDialogOpen(false);
@@ -85,6 +70,7 @@ export default function InventoryPage() {
   }
 
   const handleExport = () => {
+    if(!products) return;
     const csvData = products.map(({ name, stock, sellingPrice, compatibility, lastPurchaseDate }) => ({
       "Ürün Adı": name,
       "Stok Adedi": stock,
@@ -93,7 +79,7 @@ export default function InventoryPage() {
       "Son Alım Tarihi": lastPurchaseDate,
     }));
     const csv = Papa.unparse(csvData);
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.setAttribute('download', 'stok_durumu.csv');
@@ -121,7 +107,7 @@ export default function InventoryPage() {
             </CardDescription>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={handleExport}>
+            <Button variant="outline" onClick={handleExport} disabled={!products || products.length === 0}>
               <Download className="mr-2 h-4 w-4" />
               Excel'e Aktar
             </Button>
@@ -151,6 +137,11 @@ export default function InventoryPage() {
           </div>
         </CardHeader>
         <CardContent>
+           {loading.products ? (
+             <div className="flex justify-center items-center h-64">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+             </div>
+            ) : (
           <Table>
             <TableHeader>
               <TableRow>
@@ -168,14 +159,14 @@ export default function InventoryPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {products.map((product) => (
+              {products && products.map((product) => (
                 <TableRow key={product.id}>
                   <TableCell className="hidden sm:table-cell">
                     <Image
                       alt={product.name}
                       className="aspect-square rounded-md object-cover"
                       height="64"
-                      src={product.imageUrl}
+                      src={product.imageUrl || 'https://placehold.co/64x64'}
                       width="64"
                       data-ai-hint="car part"
                     />
@@ -236,6 +227,7 @@ export default function InventoryPage() {
               ))}
             </TableBody>
           </Table>
+           )}
         </CardContent>
       </Card>
     </div>

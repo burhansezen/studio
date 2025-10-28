@@ -7,6 +7,7 @@ import { Car, LayoutDashboard, ShoppingCart, Archive } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { AppProvider } from '@/context/AppContext';
 
 const navItems = [
   { href: '/dashboard', label: 'Panel Özeti', icon: LayoutDashboard },
@@ -71,6 +72,7 @@ export default function MainLayout({
   const bgImage = PlaceHolderImages.find((p) => p.id === 'logo-background');
 
   return (
+    <AppProvider>
       <div className="relative min-h-screen">
         {bgImage && (
           <Image
@@ -85,5 +87,6 @@ export default function MainLayout({
         <PageHeader />
         <MainContent>{children}</MainContent>
       </div>
+    </AppProvider>
   );
 }

@@ -12,15 +12,16 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ShoppingCart, Search } from 'lucide-react';
+import { ShoppingCart, Search, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useAppContext } from '@/context/AppContext';
 
 export default function SalesPage() {
-  const { products, makeSale } = useAppContext();
+  const { products, makeSale, loading = { products: true, transactions: true } } = useAppContext();
   const [searchTerm, setSearchTerm] = useState('');
 
   const filteredProducts = useMemo(() => {
+    if (!products) return [];
     if (!searchTerm) {
       return products;
     }
@@ -41,15 +42,19 @@ export default function SalesPage() {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-
-      {filteredProducts.length > 0 ? (
+      
+      {loading.products ? (
+        <div className="flex justify-center items-center h-64">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      ) : filteredProducts.length > 0 ? (
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filteredProducts.map((product) => (
             <Card key={product.id} className="flex flex-col overflow-hidden transition-all hover:shadow-lg hover:shadow-primary/10 hover:border-primary/50">
               <CardHeader className="p-0">
                 <div className="relative aspect-video">
                   <Image
-                    src={product.imageUrl}
+                    src={product.imageUrl || 'https://placehold.co/400x300'}
                     alt={product.name}
                     fill
                     className="object-cover"
@@ -82,7 +87,7 @@ export default function SalesPage() {
         <Card className="col-span-full flex flex-col items-center justify-center p-12">
             <Search className="w-16 h-16 text-muted-foreground mb-4" />
             <CardTitle className="font-headline mb-2">Ürün Bulunamadı</CardTitle>
-            <CardDescription>Aradığınız kriterlere uygun ürün bulunamadı.</CardDescription>
+            <CardDescription>{searchTerm ? 'Aradığınız kriterlere uygun ürün bulunamadı.' : 'Henüz envanterde ürün yok.'}</CardDescription>
         </Card>
       )}
     </div>

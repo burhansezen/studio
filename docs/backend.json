@@ -6,229 +6,98 @@
       "type": "object",
       "description": "Represents a product in the auto accessories shop.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the product."
-        },
         "name": {
           "type": "string",
           "description": "Name of the product."
         },
-        "description": {
-          "type": "string",
-          "description": "Detailed description of the product."
-        },
-        "price": {
-          "type": "number",
-          "description": "Selling price of the product."
-        },
-        "quantity": {
+        "stock": {
           "type": "number",
           "description": "Current quantity of the product in stock."
         },
-        "vehicleCompatibility": {
-          "type": "string",
-          "description": "Information about which vehicles the product is compatible with."
-        }
-      },
-      "required": [
-        "id",
-        "name",
-        "description",
-        "price",
-        "quantity",
-        "vehicleCompatibility"
-      ]
-    },
-    "Sale": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Sale",
-      "type": "object",
-      "description": "Represents a sale transaction.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the sale transaction."
-        },
-        "productId": {
-          "type": "string",
-          "description": "Reference to the Product sold. (Relationship: Product 1:N Sale)"
-        },
-        "quantity": {
-          "type": "number",
-          "description": "Quantity of the product sold in this transaction."
-        },
-        "saleDate": {
-          "type": "string",
-          "description": "Date and time when the sale occurred.",
-          "format": "date-time"
-        },
-        "salePrice": {
-          "type": "number",
-          "description": "The final price at which the product was sold, might be different from product's default price due to discount."
-        }
-      },
-      "required": [
-        "id",
-        "productId",
-        "quantity",
-        "saleDate",
-        "salePrice"
-      ]
-    },
-    "Purchase": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Purchase",
-      "type": "object",
-      "description": "Represents a purchase of products.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the purchase transaction."
-        },
-        "productId": {
-          "type": "string",
-          "description": "Reference to the Product purchased. (Relationship: Product 1:N Purchase)"
-        },
-        "quantity": {
-          "type": "number",
-          "description": "Quantity of the product purchased."
-        },
-        "purchaseDate": {
-          "type": "string",
-          "description": "Date and time when the purchase occurred.",
-          "format": "date-time"
-        },
         "purchasePrice": {
           "type": "number",
-          "description": "The total price paid for the product."
+          "description": "The price at which the product was purchased."
+        },
+        "sellingPrice": {
+          "type": "number",
+          "description": "The price at which the product is sold."
+        },
+        "compatibility": {
+          "type": "string",
+          "description": "Information about which vehicles the product is compatible with."
+        },
+        "imageUrl": {
+            "type": "string",
+            "description": "URL of the product image."
+        },
+        "lastPurchaseDate": {
+            "type": "string",
+            "description": "The date of the last purchase for this product."
         }
       },
       "required": [
-        "id",
-        "productId",
-        "quantity",
-        "purchaseDate",
-        "purchasePrice"
+        "name",
+        "stock",
+        "purchasePrice",
+        "sellingPrice",
+        "compatibility",
+        "imageUrl",
+        "lastPurchaseDate"
       ]
     },
-    "Refund": {
+    "Transaction": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Refund",
+      "title": "Transaction",
       "type": "object",
-      "description": "Represents a refund transaction.",
+      "description": "Represents a single transaction, which can be a sale or a return.",
       "properties": {
-        "id": {
+        "type": {
           "type": "string",
-          "description": "Unique identifier for the refund transaction."
+          "enum": ["Satış", "İade", "Alış"],
+          "description": "Type of the transaction."
         },
-        "saleId": {
+        "productId": {
+            "type": "string",
+            "description": "The ID of the product involved in the transaction."
+        },
+        "productName": {
+            "type": "string",
+            "description": "The name of the product, denormalized for easier display."
+        },
+        "dateTime": {
           "type": "string",
-          "description": "Reference to the Sale which is being refunded. (Relationship: Sale 1:N Refund)"
+          "format": "date-time",
+          "description": "Timestamp of when the transaction occurred."
         },
-        "refundDate": {
-          "type": "string",
-          "description": "Date and time when the refund was issued.",
-          "format": "date-time"
-        },
-        "refundAmount": {
+        "quantity": {
           "type": "number",
-          "description": "The monetary amount refunded."
+          "description": "Quantity of the product in the transaction."
+        },
+        "amount": {
+          "type": "number",
+          "description": "Total amount for the transaction. Can be negative for returns."
         }
       },
-      "required": [
-        "id",
-        "saleId",
-        "refundDate",
-        "refundAmount"
-      ]
+      "required": ["type", "productId", "productName", "dateTime", "quantity", "amount"]
     }
   },
   "auth": {
     "providers": [
-      "password",
       "anonymous"
     ]
   },
   "firestore": {
-    "structure": [
-      {
-        "path": "/products/{productId}",
-        "definition": {
-          "entityName": "Product",
-          "schema": {
-            "$ref": "#/backend/entities/Product"
-          },
-          "description": "Stores product information. Each document represents a unique product in the auto accessories shop.",
-          "params": [
-            {
-              "name": "productId",
-              "description": "Unique identifier for the product."
-            }
-          ]
-        }
+    "/products/{productId}": {
+      "schema": {
+        "$ref": "#/entities/Product"
       },
-      {
-        "path": "/products/{productId}/sales/{saleId}",
-        "definition": {
-          "entityName": "Sale",
-          "schema": {
-            "$ref": "#/backend/entities/Sale"
-          },
-          "description": "Stores sale transactions associated with a specific product. The productId is denormalized from the parent document. Enables listing sales associated with a particular product.",
-          "params": [
-            {
-              "name": "productId",
-              "description": "Unique identifier for the product."
-            },
-            {
-              "name": "saleId",
-              "description": "Unique identifier for the sale transaction."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/products/{productId}/purchases/{purchaseId}",
-        "definition": {
-          "entityName": "Purchase",
-          "schema": {
-            "$ref": "#/backend/entities/Purchase"
-          },
-          "description": "Stores purchase transactions associated with a specific product. The productId is denormalized from the parent product document. Enables listing purchases associated with a particular product.",
-          "params": [
-            {
-              "name": "productId",
-              "description": "Unique identifier for the product."
-            },
-            {
-              "name": "purchaseId",
-              "description": "Unique identifier for the purchase transaction."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/products/{productId}/refunds/{refundId}",
-        "definition": {
-          "entityName": "Refund",
-          "schema": {
-            "$ref": "#/backend/entities/Refund"
-          },
-          "description": "Stores refund transactions associated with a specific product's sale. Enables listing refunds associated with a particular product.",
-          "params": [
-            {
-              "name": "productId",
-              "description": "Unique identifier for the product."
-            },
-            {
-              "name": "refundId",
-              "description": "Unique identifier for the refund transaction."
-            }
-          ]
-        }
-      }
-    ],
-    "reasoning": "To ensure data persistence and real-time synchronization across devices, I propose a Firestore structure that leverages the user's authentication for data isolation and denormalization for efficient data retrieval and security rule enforcement. The design focuses on storing product, sales, purchases, and refund data in collections that are easily queried and managed. Authorization Independence is achieved by storing data related to a product's sales, purchases, and refunds within subcollections owned by a `product`. This denormalization ensures that all necessary authorization information is readily available without needing to perform costly `get()` operations in the security rules.\n\nSpecifically, each product has associated sales, purchases, and refund records stored in subcollections. This approach enables straightforward queries for sales, purchases, and refunds associated with a given product. The structure also supports the core features of the application, including displaying net income, sales data, and purchase data on the main screen. Inventory synchronization is achieved through real-time updates to Firestore, ensuring that changes are reflected across all devices.\n\n**QAPs Support:**\n*   Secure List Operations (QAPs): Structural Segregation is applied by storing different data types (products, sales, purchases, refunds) in separate collections/subcollections.  This allows for specific security rules tailored to each data type, ensuring that users can only access data they are authorized to view. The hierarchical structure enforces ownership and allows listing operations to be secured based on the relationship between products and their related transactions.\n\nThis structure enables atomic operations within a single product's subcollections, like creating a sale and updating product quantity in a single transaction, further enhancing data consistency and reliability."
+      "description": "Stores all product information for the auto accessories shop."
+    },
+    "/transactions/{transactionId}": {
+        "schema": {
+            "$ref": "#/entities/Transaction"
+        },
+        "description": "Stores all sale, purchase, and return transactions."
+    }
   }
 }
