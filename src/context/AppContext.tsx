@@ -32,6 +32,7 @@ import {
 import { getStorage, ref, uploadString, getDownloadURL, deleteObject } from "firebase/storage";
 import { ProductFormValues } from '@/app/(main)/inventory/add-product-form';
 import { useRouter } from 'next/navigation';
+import { Toaster } from '@/components/ui/toaster';
 
 type GroupedTransactions = {
   [date: string]: Transaction[];
@@ -496,6 +497,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   return (
     <FirebaseProvider firebaseApp={firebaseApp} auth={auth} firestore={firestore}>
       <AppContextProviderContent>{children}</AppContextProviderContent>
+      <Toaster />
     </FirebaseProvider>
   );
 };
