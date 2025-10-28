@@ -7,7 +7,6 @@ import { AppProvider } from '@/context/AppContext';
 export const metadata: Metadata = {
   title: 'SZN Auto Manager',
   description: 'Oto aksesuar dükkanı yönetim paneli',
-  icons: [{ rel: "icon", url: "/favicon.ico" }],
 };
 
 export default function RootLayout({
