@@ -3,7 +3,7 @@
 import React, { DependencyList, createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
 import { FirebaseApp } from 'firebase/app';
 import { Firestore } from 'firebase/firestore';
-import { Auth, User, onAuthStateChanged } from 'firebase/auth';
+import { Auth, User, onAuthStateChanged, signInAnonymously } from 'firebase/auth';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener'
 
 interface FirebaseProviderProps {
@@ -79,7 +79,16 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     const unsubscribe = onAuthStateChanged(
       auth,
       (firebaseUser) => { // Auth state determined
-        setUserAuthState({ user: firebaseUser, isUserLoading: false, userError: null });
+        if (!firebaseUser) {
+          // If no user, sign in anonymously. This is a common pattern for public apps
+          // that still need a stable user ID for things like analytics or basic data storage.
+          signInAnonymously(auth).catch((error) => {
+             console.error("FirebaseProvider: Anonymous sign-in error:", error);
+             setUserAuthState({ user: null, isUserLoading: false, userError: error });
+          });
+        } else {
+           setUserAuthState({ user: firebaseUser, isUserLoading: false, userError: null });
+        }
       },
       (error) => { // Auth listener error
         console.error("FirebaseProvider: onAuthStateChanged error:", error);
