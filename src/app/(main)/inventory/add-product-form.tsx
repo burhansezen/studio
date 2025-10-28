@@ -15,6 +15,9 @@ import {
 import { Input } from '@/components/ui/input';
 import type { Product } from '@/lib/types';
 
+const MAX_FILE_SIZE = 5000000; // 5MB
+const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+
 const formSchema = z.object({
   name: z.string().min(2, {
     message: 'Ürün adı en az 2 karakter olmalıdır.',
@@ -28,11 +31,18 @@ const formSchema = z.object({
   compatibility: z.string().min(2, {
     message: 'Uyumluluk bilgisi en az 2 karakter olmalıdır.',
   }),
-  imageUrl: z.string().url({ message: "Lütfen geçerli bir resim URL'si girin." }),
+  image: z
+    .custom<FileList>()
+    .refine((files) => files?.length > 0, 'Resim dosyası gereklidir.')
+    .refine((files) => files?.[0]?.size <= MAX_FILE_SIZE, `Maksimum dosya boyutu 5MB'dir.`)
+    .refine(
+      (files) => ACCEPTED_IMAGE_TYPES.includes(files?.[0]?.type),
+      ".jpg, .jpeg, .png ve .webp formatları desteklenmektedir."
+    ),
 });
 
 type AddProductFormProps = {
-  onAddProduct: (product: Omit<Product, 'id' | 'lastPurchaseDate'>) => void;
+  onAddProduct: (product: Omit<Product, 'id' | 'lastPurchaseDate' | 'imageUrl'> & { image: File }) => void;
 };
 
 export function AddProductForm({ onAddProduct }: AddProductFormProps) {
@@ -43,12 +53,14 @@ export function AddProductForm({ onAddProduct }: AddProductFormProps) {
       stock: 0,
       price: 0,
       compatibility: '',
-      imageUrl: '',
+      image: undefined,
     },
   });
 
+  const fileRef = form.register("image");
+
   function onSubmit(values: z.infer<typeof formSchema>) {
-    onAddProduct(values);
+    onAddProduct({ ...values, image: values.image[0] });
     form.reset();
   }
 
@@ -109,12 +121,12 @@ export function AddProductForm({ onAddProduct }: AddProductFormProps) {
         />
         <FormField
           control={form.control}
-          name="imageUrl"
+          name="image"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Resim URL'si</FormLabel>
+              <FormLabel>Resim</FormLabel>
               <FormControl>
-                <Input placeholder="https://..." {...field} />
+                <Input type="file" accept="image/png, image/jpeg" {...fileRef} />
               </FormControl>
               <FormMessage />
             </FormItem>

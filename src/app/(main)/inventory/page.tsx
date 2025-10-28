@@ -32,17 +32,26 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 
+type NewProductData = Omit<Product, 'id' | 'lastPurchaseDate' | 'imageUrl'> & { image: File };
+
 export default function InventoryPage() {
   const [products, setProducts] = useState<Product[]>(initialProducts);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  const handleAddProduct = (newProduct: Omit<Product, 'id' | 'lastPurchaseDate'>) => {
-    const productToAdd: Product = {
-      ...newProduct,
-      id: (products.length + 1).toString(),
-      lastPurchaseDate: new Date().toISOString().split('T')[0],
+  const handleAddProduct = (newProductData: NewProductData) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const imageUrl = e.target?.result as string;
+      const { image, ...rest } = newProductData;
+      const productToAdd: Product = {
+        ...rest,
+        id: (products.length + 1).toString(),
+        lastPurchaseDate: new Date().toISOString().split('T')[0],
+        imageUrl: imageUrl,
+      };
+      setProducts((prevProducts) => [productToAdd, ...prevProducts]);
     };
-    setProducts((prevProducts) => [productToAdd, ...prevProducts]);
+    reader.readAsDataURL(newProductData.image);
     setIsDialogOpen(false);
   };
 
