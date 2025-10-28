@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, ReactNode, useMemo } from 'react';
 import type { Product, Transaction, SummaryCardData } from '@/lib/types';
 import { DollarSign, ShoppingBag, ArrowLeftRight } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 type AppContextType = {
   products: Product[];
@@ -20,6 +21,7 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const { toast } = useToast();
 
   const totalStock = useMemo(() => {
     return products.reduce((sum, product) => sum + product.stock, 0);
@@ -79,6 +81,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       amount: product.sellingPrice,
     };
     setTransactions(prevTransactions => [newTransaction, ...prevTransactions]);
+    
+    toast({
+      title: "Satış Başarılı",
+      description: `${product.name} ürününden 1 adet satıldı.`,
+    });
   };
 
   const value = {
