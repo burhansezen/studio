@@ -15,21 +15,37 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { summaryData, transactions } from '@/lib/data';
 import type { Transaction } from '@/lib/types';
+import { cn } from '@/lib/utils';
 
 export default function DashboardPage() {
   return (
     <div className="flex flex-col gap-8">
-      <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {summaryData.map((data) => (
-          <Card key={data.title} className="hover:border-primary/50 transition-colors">
+      <section className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {summaryData.map((data, index) => (
+          <Card
+            key={data.title}
+            className={cn(
+              'transition-all hover:shadow-lg',
+              index === 0
+                ? 'bg-primary/5 border-primary/20 hover:border-primary/50'
+                : 'hover:border-primary/20'
+            )}
+          >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 {data.title}
               </CardTitle>
-              <data.icon className="h-5 w-5 text-muted-foreground text-primary" />
+              <data.icon
+                className={cn(
+                  'h-5 w-5 text-muted-foreground',
+                  index === 0 && 'text-primary'
+                )}
+              />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold font-headline">{data.value}</div>
+              <div className="text-3xl font-bold font-headline">
+                {data.value}
+              </div>
               <p className="text-xs text-muted-foreground">{data.change}</p>
             </CardContent>
           </Card>
@@ -55,17 +71,36 @@ export default function DashboardPage() {
               <TableBody>
                 {transactions.map((transaction: Transaction) => (
                   <TableRow key={transaction.id}>
-                    <TableCell className="font-medium">{transaction.productName}</TableCell>
+                    <TableCell className="font-medium">
+                      {transaction.productName}
+                    </TableCell>
                     <TableCell>
-                      <Badge variant={transaction.type === 'Satış' ? 'secondary' : transaction.type === 'İade' ? 'destructive' : 'default'}
-                       className={transaction.type === 'Alış' ? 'bg-blue-500/20 text-blue-300 border-blue-500/30' : ''}>
+                      <Badge
+                        variant={
+                          transaction.type === 'Satış'
+                            ? 'secondary'
+                            : transaction.type === 'İade'
+                              ? 'destructive'
+                              : 'default'
+                        }
+                      >
                         {transaction.type}
                       </Badge>
                     </TableCell>
                     <TableCell>{transaction.date}</TableCell>
                     <TableCell>{transaction.quantity}</TableCell>
-                    <TableCell className={`text-right font-mono ${transaction.amount > 0 ? 'text-green-400' : 'text-red-400'}`}>
-                      {transaction.amount.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}
+                    <TableCell
+                      className={cn(
+                        'text-right font-mono',
+                        transaction.amount > 0
+                          ? 'text-green-500' // Consistent with positive financial indicators
+                          : 'text-destructive'
+                      )}
+                    >
+                      {transaction.amount.toLocaleString('tr-TR', {
+                        style: 'currency',
+                        currency: 'TRY',
+                      })}
                     </TableCell>
                   </TableRow>
                 ))}
