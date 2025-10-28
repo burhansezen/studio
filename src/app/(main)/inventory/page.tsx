@@ -1,4 +1,7 @@
+'use client';
+
 import Image from 'next/image';
+import { useState } from 'react';
 import {
   Table,
   TableBody,
@@ -16,10 +19,33 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PlusCircle } from 'lucide-react';
-import { products } from '@/lib/data';
+import { products as initialProducts } from '@/lib/data';
+import type { Product } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
+import { AddProductForm } from './add-product-form';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 
 export default function InventoryPage() {
+  const [products, setProducts] = useState<Product[]>(initialProducts);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  const handleAddProduct = (newProduct: Omit<Product, 'id' | 'lastPurchaseDate'>) => {
+    const productToAdd: Product = {
+      ...newProduct,
+      id: (products.length + 1).toString(),
+      lastPurchaseDate: new Date().toISOString().split('T')[0],
+    };
+    setProducts((prevProducts) => [productToAdd, ...prevProducts]);
+    setIsDialogOpen(false);
+  };
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
@@ -29,10 +55,23 @@ export default function InventoryPage() {
             Stoktaki ürünleri görüntüleyin ve yeni alımları kaydedin.
           </CardDescription>
         </div>
-        <Button>
-          <PlusCircle className="mr-2 h-4 w-4" />
-          Ürün Ekle
-        </Button>
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Ürün Ekle
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Yeni Ürün Ekle</DialogTitle>
+              <DialogDescription>
+                Yeni ürün bilgilerini girin ve envantere ekleyin.
+              </DialogDescription>
+            </DialogHeader>
+            <AddProductForm onAddProduct={handleAddProduct} />
+          </DialogContent>
+        </Dialog>
       </CardHeader>
       <CardContent>
         <Table>
@@ -63,12 +102,15 @@ export default function InventoryPage() {
                 </TableCell>
                 <TableCell className="font-medium">{product.name}</TableCell>
                 <TableCell>
-                  <Badge variant={product.stock < 10 ? "destructive" : "secondary"}>
+                  <Badge variant={product.stock < 10 ? 'destructive' : 'secondary'}>
                     {product.stock} adet
                   </Badge>
                 </TableCell>
                 <TableCell className="font-mono">
-                  {product.price.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}
+                  {product.price.toLocaleString('tr-TR', {
+                    style: 'currency',
+                    currency: 'TRY',
+                  })}
                 </TableCell>
                 <TableCell className="hidden md:table-cell">
                   {product.compatibility}
