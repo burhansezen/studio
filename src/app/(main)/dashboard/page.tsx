@@ -14,6 +14,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
 import type { Transaction } from '@/lib/types';
 import { cn } from '@/lib/utils';
@@ -21,11 +27,11 @@ import { useAppContext } from '@/context/AppContext';
 import { Search } from 'lucide-react';
 
 export default function DashboardPage() {
-  const { summaryData, transactions } = useAppContext();
+  const { summaryData, groupedTransactions, transactions } = useAppContext();
 
   return (
     <div className="flex flex-col gap-8">
-      <section className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <section className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         {summaryData.map((data, index) => (
           <Card
             key={data.title}
@@ -64,54 +70,64 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             {transactions.length > 0 ? (
-                <Table>
-                <TableHeader>
-                    <TableRow>
-                    <TableHead>Ürün</TableHead>
-                    <TableHead>Tip</TableHead>
-                    <TableHead>Tarih</TableHead>
-                    <TableHead>Miktar</TableHead>
-                    <TableHead className="text-right">Tutar</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {transactions.map((transaction: Transaction) => (
-                    <TableRow key={transaction.id} className="hover:bg-muted/50">
-                        <TableCell className="font-medium">
-                        {transaction.productName}
-                        </TableCell>
-                        <TableCell>
-                        <Badge
-                            variant={
-                            transaction.type === 'Satış'
-                                ? 'secondary'
-                                : transaction.type === 'İade'
-                                ? 'destructive'
-                                : 'default'
-                            }
-                        >
-                            {transaction.type}
-                        </Badge>
-                        </TableCell>
-                        <TableCell>{transaction.date}</TableCell>
-                        <TableCell>{transaction.quantity}</TableCell>
-                        <TableCell
-                        className={cn(
-                            'text-right font-mono',
-                            transaction.amount > 0
-                            ? 'text-green-500' 
-                            : transaction.amount < 0 ? 'text-destructive' : ''
-                        )}
-                        >
-                        {transaction.amount.toLocaleString('tr-TR', {
-                            style: 'currency',
-                            currency: 'TRY',
-                        })}
-                        </TableCell>
-                    </TableRow>
-                    ))}
-                </TableBody>
-                </Table>
+              <Accordion type="multiple" defaultValue={Object.keys(groupedTransactions).slice(0, 1)} className="w-full">
+                {Object.entries(groupedTransactions).map(([date, transactionsOnDate]) => (
+                  <AccordionItem value={date} key={date}>
+                    <AccordionTrigger className="font-medium">
+                      {new Date(date).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric', weekday: 'long' })} 
+                      <span className="text-sm text-muted-foreground ml-4">({transactionsOnDate.length} işlem)</span>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                       <Table>
+                        <TableHeader>
+                            <TableRow>
+                            <TableHead>Ürün</TableHead>
+                            <TableHead>Tip</TableHead>
+                            <TableHead>Miktar</TableHead>
+                            <TableHead className="text-right">Tutar</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {transactionsOnDate.map((transaction: Transaction) => (
+                            <TableRow key={transaction.id} className="hover:bg-muted/50">
+                                <TableCell className="font-medium">
+                                {transaction.productName}
+                                </TableCell>
+                                <TableCell>
+                                <Badge
+                                    variant={
+                                    transaction.type === 'Satış'
+                                        ? 'secondary'
+                                        : transaction.type === 'İade'
+                                        ? 'destructive'
+                                        : 'default'
+                                    }
+                                >
+                                    {transaction.type}
+                                </Badge>
+                                </TableCell>
+                                <TableCell>{transaction.quantity}</TableCell>
+                                <TableCell
+                                className={cn(
+                                    'text-right font-mono',
+                                    transaction.amount > 0
+                                    ? 'text-green-500' 
+                                    : transaction.amount < 0 ? 'text-destructive' : ''
+                                )}
+                                >
+                                {transaction.amount.toLocaleString('tr-TR', {
+                                    style: 'currency',
+                                    currency: 'TRY',
+                                })}
+                                </TableCell>
+                            </TableRow>
+                            ))}
+                        </TableBody>
+                        </Table>
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
             ) : (
                 <div className="flex flex-col items-center justify-center p-12 text-center">
                     <Search className="w-16 h-16 text-muted-foreground mb-4" />

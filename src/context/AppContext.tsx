@@ -2,14 +2,20 @@
 
 import React, { createContext, useContext, useState, ReactNode, useMemo } from 'react';
 import type { Product, Transaction, SummaryCardData } from '@/lib/types';
-import { DollarSign, ShoppingBag, ArrowLeftRight } from 'lucide-react';
+import { DollarSign, ShoppingBag, ArrowLeftRight, TrendingUp } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+
+type GroupedTransactions = {
+  [date: string]: Transaction[];
+};
+
 
 type AppContextType = {
   products: Product[];
   transactions: Transaction[];
   summaryData: SummaryCardData[];
   totalStock: number;
+  groupedTransactions: GroupedTransactions;
   addProduct: (productData: Omit<Product, 'id' | 'lastPurchaseDate'>) => void;
   updateProduct: (productData: Product) => void;
   deleteProduct: (productId: string) => void;
@@ -33,11 +39,34 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const totalReturns = transactions.filter(t => t.type === 'İade').reduce((sum, t) => sum + t.amount, 0);
     const netIncome = totalRevenue + totalReturns;
 
+    const totalProfit = transactions
+      .filter(t => t.type === 'Satış')
+      .reduce((sum, t) => {
+        const product = products.find(p => p.name === t.productName);
+        if (product) {
+          const profitPerItem = product.sellingPrice - product.purchasePrice;
+          return sum + (profitPerItem * t.quantity);
+        }
+        return sum;
+      }, 0);
+
     return [
       { title: 'Net Gelir', value: `₺${netIncome.toLocaleString('tr-TR')}`, change: '', icon: DollarSign },
+      { title: 'Toplam Kâr', value: `₺${totalProfit.toLocaleString('tr-TR')}`, change: '', icon: TrendingUp },
       { title: 'Satışlar', value: `+₺${totalRevenue.toLocaleString('tr-TR')}`, change: '', icon: ShoppingBag },
       { title: 'İadeler', value: `₺${totalReturns.toLocaleString('tr-TR')}`, change: '', icon: ArrowLeftRight },
     ];
+  }, [transactions, products]);
+
+  const groupedTransactions = useMemo(() => {
+    return transactions.reduce((acc, transaction) => {
+      const date = transaction.date;
+      if (!acc[date]) {
+        acc[date] = [];
+      }
+      acc[date].push(transaction);
+      return acc;
+    }, {} as GroupedTransactions);
   }, [transactions]);
 
 
@@ -121,6 +150,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     transactions,
     summaryData,
     totalStock,
+    groupedTransactions,
     addProduct,
     updateProduct,
     deleteProduct,
