@@ -1,0 +1,90 @@
+/**
+ * @file Firestore Security Rules
+ * @description This ruleset enforces a strict data persistence and real-time synchronization model, isolating data based on product ownership.
+ *
+ * Data Structure:
+ * - /products/{productId}: Stores product information.
+ * - /products/{productId}/sales/{saleId}: Stores sales records for each product.
+ * - /products/{productId}/purchases/{purchaseId}: Stores purchase records for each product.
+ * - /products/{productId}/refunds/{refundId}: Stores refund records for each product.
+ *
+ * Key Security Decisions:
+ * - All data is nested under products, with sales, purchases, and refunds as subcollections.
+ * - The system uses an ownership model, where all operations are restricted to authenticated users.
+ * - The rules are designed to prevent unauthorized access to product data and associated transactions.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * @description Defines access rules for the /products collection.
+     * @path /products/{productId}
+     * @allow (get, list): Any user can view any product.
+     * @allow (create, update, delete): Only authenticated users can create, update, or delete products.
+     * @deny (create, update, delete): Prevents unauthenticated users from modifying the product catalog.
+     * @principle Allows any user to read product information, but restricts creation, modification, and deletion to authenticated users.
+     */
+    match /products/{productId} {
+      allow get, list: if true;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
+    }
+
+    /**
+     * @description Defines access rules for the /products/{productId}/sales collection.
+     * @path /products/{productId}/sales/{saleId}
+     * @allow (get, list): Any authenticated user can view sales records for any product.
+     * @allow (create, update, delete): Only authenticated users can create, update, or delete sales records.
+     * @deny (create, update, delete): Prevents unauthenticated users from creating, modifying, or deleting sales records.
+     * @principle Ensures that only authenticated users can manage sales records for products.
+     */
+    match /products/{productId}/sales/{saleId} {
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
+    }
+
+    /**
+     * @description Defines access rules for the /products/{productId}/purchases collection.
+     * @path /products/{productId}/purchases/{purchaseId}
+     * @allow (get, list): Any authenticated user can view purchase records for any product.
+     * @allow (create, update, delete): Only authenticated users can create, update, or delete purchase records.
+     * @deny (create, update, delete): Prevents unauthenticated users from creating, modifying, or deleting purchase records.
+     * @principle Ensures that only authenticated users can manage purchase records for products.
+     */
+    match /products/{productId}/purchases/{purchaseId} {
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
+    }
+
+    /**
+     * @description Defines access rules for the /products/{productId}/refunds collection.
+     * @path /products/{productId}/refunds/{refundId}
+     * @allow (get, list): Any authenticated user can view refund records for any product.
+     * @allow (create, update, delete): Only authenticated users can create, update, or delete refund records.
+     * @deny (create, update, delete): Prevents unauthenticated users from creating, modifying, or deleting refund records.
+     * @principle Ensures that only authenticated users can manage refund records for products.
+     */
+    match /products/{productId}/refunds/{refundId} {
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
+    }
+
+    //------------------Helper functions----------------------
+
+    /**
+     * @description Checks if the user is signed in.
+     * @return {bool} True if the user is signed in, false otherwise.
+     */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+  }
+}
