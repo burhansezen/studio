@@ -13,8 +13,8 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
-  SidebarInset,
   SidebarTrigger,
+  useSidebar,
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
@@ -42,8 +42,53 @@ function PageHeader() {
   );
 }
 
-export default function MainLayout({ children }: { children: React.ReactNode }) {
+function MainContent({ children }: { children: React.ReactNode }) {
+  const { state } = useSidebar();
+  return (
+    <main
+      className="transition-[margin-left] duration-300 ease-in-out"
+      style={{
+        marginLeft:
+          state === 'expanded'
+            ? 'var(--sidebar-width)'
+            : 'var(--sidebar-width-icon)',
+      }}
+    >
+      <PageHeader />
+      <div className="p-4 sm:p-6 lg:p-8">{children}</div>
+    </main>
+  );
+}
+
+function SideMenu() {
   const pathname = usePathname();
+  return (
+    <SidebarMenu>
+      {navItems.map((item) => (
+        <SidebarMenuItem key={item.href}>
+          <Link href={item.href} legacyBehavior passHref>
+            <SidebarMenuButton
+              isActive={pathname.startsWith(item.href)}
+              tooltip={{
+                children: item.label,
+                className: 'font-headline',
+              }}
+            >
+              <item.icon />
+              <span>{item.label}</span>
+            </SidebarMenuButton>
+          </Link>
+        </SidebarMenuItem>
+      ))}
+    </SidebarMenu>
+  );
+}
+
+export default function MainLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const bgImage = PlaceHolderImages.find((p) => p.id === 'logo-background');
 
   return (
@@ -81,30 +126,10 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
             </Link>
           </SidebarHeader>
           <SidebarContent>
-            <SidebarMenu>
-              {navItems.map((item) => (
-                <SidebarMenuItem key={item.href}>
-                  <Link href={item.href} legacyBehavior passHref>
-                    <SidebarMenuButton
-                      isActive={pathname.startsWith(item.href)}
-                      tooltip={{
-                        children: item.label,
-                        className: 'font-headline',
-                      }}
-                    >
-                      <item.icon />
-                      <span>{item.label}</span>
-                    </SidebarMenuButton>
-                  </Link>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
+            <SideMenu />
           </SidebarContent>
         </Sidebar>
-        <SidebarInset>
-          <PageHeader />
-          <div className="p-4 sm:p-6 lg:p-8">{children}</div>
-        </SidebarInset>
+        <MainContent>{children}</MainContent>
       </div>
     </SidebarProvider>
   );
