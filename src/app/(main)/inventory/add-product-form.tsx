@@ -28,7 +28,7 @@ const formSchema = z.object({
   compatibility: z.string().min(2, {
     message: 'Uyumluluk bilgisi en az 2 karakter olmalıdır.',
   }),
-  imageUrl: z.string().url({ message: 'Lütfen geçerli bir resim URL\'si girin.' }),
+  imageUrl: z.string().url({ message: "Lütfen geçerli bir resim URL'si girin." }),
 });
 
 type AddProductFormProps = {
