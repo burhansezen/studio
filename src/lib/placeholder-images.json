@@ -1,3 +1,52 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "logo-background",
+      "description": "SZN Auto Manager logo background texture",
+      "imageUrl": "https://images.unsplash.com/photo-1633281256183-c0f106f70d76?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxhdXRvJTIwcGFydHMlMjBwYXR0ZXJufGVufDB8fHx8MTc2MTY4NDU1Nnww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "auto parts pattern"
+    },
+    {
+      "id": "product-wheel",
+      "description": "Alloy wheel product image",
+      "imageUrl": "https://images.unsplash.com/photo-1606151760524-5b9563f952d4?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw5fHxhbGxveSUyMHdoZWVsfGVufDB8fHx8MTc2MTYzNTY5Mnww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "alloy wheel"
+    },
+    {
+      "id": "product-headlight",
+      "description": "LED headlight product image",
+      "imageUrl": "https://images.unsplash.com/photo-1500883859571-70b85e129372?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw5fHxjYXIlMjBoZWFkbGlnaHR8ZW58MHx8fHwxNzYxNjY5OTczfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "car headlight"
+    },
+    {
+      "id": "product-spoiler",
+      "description": "Carbon fiber spoiler product image",
+      "imageUrl": "https://images.unsplash.com/photo-1682367054258-3db6e59a215b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw5fHxjYXIlMjBzcG9pbGVyfGVufDB8fHx8MTc2MTYzNDk5OHww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "car spoiler"
+    },
+    {
+      "id": "product-exhaust",
+      "description": "Performance exhaust product image",
+      "imageUrl": "https://images.unsplash.com/photo-1572435759312-848041b1d659?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxjYXIlMjBleGhhdXN0fGVufDB8fHx8MTc2MTY4NDU1NXww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "car exhaust"
+    },
+    {
+      "id": "product-seat",
+      "description": "Racing seat product image",
+      "imageUrl": "https://images.unsplash.com/photo-1705258303532-af0247307262?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxyYWNpbmclMjBzZWF0fGVufDB8fHx8MTc2MTY0NjkxN3ww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "racing seat"
+    },
+    {
+      "id": "product-multimedia",
+      "description": "Car multimedia system",
+      "imageUrl": "https://images.unsplash.com/photo-1632710366440-811ad657aced?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxjYXIlMjBtdWx0aW1lZGlhfGVufDB8fHx8MTc2MTY4NDU1NXww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "car multimedia"
+    },
+    {
+      "id": "product-bodykit",
+      "description": "Car bodykit",
+      "imageUrl": "https://images.unsplash.com/photo-1750255440307-80f7aa1c15ea?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw2fHxjYXIlMjBib2R5a2l0fGVufDB8fHx8MTc2MTY4NDU1NXww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "car bodykit"
+    }
+  ]
 }
