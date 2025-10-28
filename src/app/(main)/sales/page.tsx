@@ -15,7 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { useAppContext } from '@/context/AppContext';
 
 export default function SalesPage() {
-  const { products } = useAppContext();
+  const { products, makeSale } = useAppContext();
 
   return (
     <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -45,7 +45,7 @@ export default function SalesPage() {
                  {product.stock} adet stokta
                </Badge>
             </div>
-            <Button className="w-full" disabled={product.stock === 0}>
+            <Button className="w-full" disabled={product.stock === 0} onClick={() => makeSale(product)}>
               <ShoppingCart className="mr-2 h-4 w-4" />
               Satış Yap
             </Button>

@@ -13,6 +13,7 @@ type AppContextType = {
   addProduct: (productData: Omit<Product, 'id' | 'lastPurchaseDate'>) => void;
   updateProduct: (productData: Product) => void;
   deleteProduct: (productId: string) => void;
+  makeSale: (product: Product) => void;
 };
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -61,6 +62,26 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const makeSale = (product: Product) => {
+    // Decrease stock
+    setProducts(prevProducts =>
+      prevProducts.map(p =>
+        p.id === product.id ? { ...p, stock: p.stock - 1 } : p
+      )
+    );
+
+    // Add transaction
+    const newTransaction: Transaction = {
+      id: `t${transactions.length + 1}`,
+      type: 'Satış',
+      productName: product.name,
+      date: new Date().toISOString().split('T')[0],
+      quantity: 1,
+      amount: product.sellingPrice,
+    };
+    setTransactions(prevTransactions => [newTransaction, ...prevTransactions]);
+  };
+
   const value = {
     products,
     transactions,
@@ -69,6 +90,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     addProduct,
     updateProduct,
     deleteProduct,
+    makeSale,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
