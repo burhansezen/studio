@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -15,6 +16,11 @@ import {
 import { Input } from '@/components/ui/input';
 import type { Product } from '@/lib/types';
 import { useEffect } from 'react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
+import { CalendarIcon } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
+import { format } from 'date-fns';
 
 const MAX_FILE_SIZE = 5000000; // 5MB
 const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
@@ -34,6 +40,9 @@ const baseSchema = z.object({
   }),
   compatibility: z.string().min(2, {
     message: 'Uyumluluk bilgisi en az 2 karakter olmalıdır.',
+  }),
+  lastPurchaseDate: z.date({
+    required_error: "Son alım tarihi gereklidir.",
   }),
 });
 
@@ -66,6 +75,7 @@ export function ProductForm({ onSubmit, product }: ProductFormProps) {
       sellingPrice: 0,
       compatibility: '',
       image: undefined,
+      lastPurchaseDate: new Date(),
     },
   });
 
@@ -78,6 +88,7 @@ export function ProductForm({ onSubmit, product }: ProductFormProps) {
         sellingPrice: product.sellingPrice,
         compatibility: product.compatibility,
         image: undefined,
+        lastPurchaseDate: new Date(product.lastPurchaseDate),
       });
     } else {
        form.reset({
@@ -87,6 +98,7 @@ export function ProductForm({ onSubmit, product }: ProductFormProps) {
         sellingPrice: 0,
         compatibility: '',
         image: undefined,
+        lastPurchaseDate: new Date(),
       });
     }
   }, [product, form]);
@@ -162,6 +174,47 @@ export function ProductForm({ onSubmit, product }: ProductFormProps) {
               <FormControl>
                 <Input placeholder="Örn: VW Golf, Audi A3" {...field} />
               </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+         <FormField
+          control={form.control}
+          name="lastPurchaseDate"
+          render={({ field }) => (
+            <FormItem className="flex flex-col">
+              <FormLabel>Son Alım Tarihi</FormLabel>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <FormControl>
+                    <Button
+                      variant={"outline"}
+                      className={cn(
+                        "w-full pl-3 text-left font-normal",
+                        !field.value && "text-muted-foreground"
+                      )}
+                    >
+                      {field.value ? (
+                        format(field.value, "PPP")
+                      ) : (
+                        <span>Bir tarih seçin</span>
+                      )}
+                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                    </Button>
+                  </FormControl>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={field.value}
+                    onSelect={field.onChange}
+                    disabled={(date) =>
+                      date > new Date() || date < new Date("1900-01-01")
+                    }
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
               <FormMessage />
             </FormItem>
           )}

@@ -103,6 +103,7 @@ const AppContextProviderContent = ({ children }: { children: ReactNode }) => {
   
   // Create user on first load
   useEffect(() => {
+    if (isUserLoading) return;
     const createInitialUser = async () => {
         try {
             // Try to sign in. If it fails (user not found), create the user.
@@ -119,8 +120,10 @@ const AppContextProviderContent = ({ children }: { children: ReactNode }) => {
             }
         }
     };
-    createInitialUser();
-  }, [auth]);
+    if (!user) {
+        createInitialUser();
+    }
+  }, [auth, user, isUserLoading]);
 
   const totalStock = useMemo(() => {
     if (!products) return 0;
@@ -232,12 +235,12 @@ const AppContextProviderContent = ({ children }: { children: ReactNode }) => {
         imageUrl = await uploadImage(productData.image[0]);
       }
       
-      const { image, ...rest } = productData;
+      const { image, lastPurchaseDate, ...rest } = productData;
 
       await addDoc(collection(firestore, 'products'), {
         ...rest,
         imageUrl,
-        lastPurchaseDate: new Date().toISOString().split('T')[0],
+        lastPurchaseDate: lastPurchaseDate.toISOString().split('T')[0],
       });
 
       toast({
@@ -264,8 +267,11 @@ const AppContextProviderContent = ({ children }: { children: ReactNode }) => {
         imageUrl = await uploadImage(productData.image[0]);
       }
       
-      const { image, ...rest } = productData;
-      const updateData: Partial<ProductFormValues & {imageUrl?: string}> = {...rest};
+      const { image, lastPurchaseDate, ...rest } = productData;
+      const updateData: Partial<Omit<ProductFormValues, 'image' | 'lastPurchaseDate'> & {imageUrl?: string, lastPurchaseDate: string}> = {
+          ...rest,
+          lastPurchaseDate: lastPurchaseDate.toISOString().split('T')[0],
+      };
       if(imageUrl) {
         updateData.imageUrl = imageUrl;
       }
