@@ -64,19 +64,29 @@ type ProductFormProps = {
   product?: Product | null;
 };
 
+const defaultFormValues = {
+  name: '',
+  stock: 0,
+  purchasePrice: 0,
+  sellingPrice: 0,
+  compatibility: '',
+  image: undefined,
+  lastPurchaseDate: new Date(),
+};
+
 export function ProductForm({ onSubmit, product }: ProductFormProps) {
   const currentSchema = product ? editFormSchema : formSchema;
   const form = useForm<z.infer<typeof currentSchema>>({
     resolver: zodResolver(currentSchema),
-    defaultValues: {
-      name: '',
-      stock: 0,
-      purchasePrice: 0,
-      sellingPrice: 0,
-      compatibility: '',
-      image: undefined,
-      lastPurchaseDate: new Date(),
-    },
+    defaultValues: product ? {
+        name: product.name,
+        stock: product.stock,
+        purchasePrice: product.purchasePrice,
+        sellingPrice: product.sellingPrice,
+        compatibility: product.compatibility,
+        image: undefined,
+        lastPurchaseDate: product.lastPurchaseDate.toDate(),
+    } : defaultFormValues,
   });
 
   useEffect(() => {
@@ -91,15 +101,7 @@ export function ProductForm({ onSubmit, product }: ProductFormProps) {
         lastPurchaseDate: product.lastPurchaseDate.toDate(),
       });
     } else {
-       form.reset({
-        name: '',
-        stock: 0,
-        purchasePrice: 0,
-        sellingPrice: 0,
-        compatibility: '',
-        image: undefined,
-        lastPurchaseDate: new Date(),
-      });
+       form.reset(defaultFormValues);
     }
   }, [product, form]);
 
@@ -107,7 +109,9 @@ export function ProductForm({ onSubmit, product }: ProductFormProps) {
 
   function handleFormSubmit(values: z.infer<typeof currentSchema>) {
     onSubmit(values as ProductFormValues);
-    form.reset();
+    if (!product) {
+        form.reset(defaultFormValues);
+    }
   }
 
   return (
@@ -239,5 +243,3 @@ export function ProductForm({ onSubmit, product }: ProductFormProps) {
     </Form>
   );
 }
-
-    
