@@ -51,8 +51,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const firestore = useFirestore();
   const auth = useAuth();
   
-  const productsRef = useMemoFirebase(() => (firestore && user) ? collection(firestore, 'products') : null, [firestore, user]);
-  const transactionsRef = useMemoFirebase(() => (firestore && user) ? collection(firestore, 'transactions') : null, [firestore, user]);
+  const productsRef = useMemoFirebase(() => (firestore && user && !isUserLoading) ? collection(firestore, 'products') : null, [firestore, user, isUserLoading]);
+  const transactionsRef = useMemoFirebase(() => (firestore && user && !isUserLoading) ? collection(firestore, 'transactions') : null, [firestore, user, isUserLoading]);
 
   const { data: productsData, isLoading: productsLoading } = useCollection<Product>(productsRef);
   const { data: transactionsData, isLoading: transactionsLoading } = useCollection<Transaction>(transactionsRef);
@@ -362,5 +362,3 @@ export const useAppContext = () => {
   }
   return context;
 };
-
-    
