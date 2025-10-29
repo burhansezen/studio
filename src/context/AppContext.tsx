@@ -5,10 +5,8 @@ import type { Product, Transaction, SummaryCardData } from '@/lib/types';
 import { DollarSign, ShoppingBag, ArrowLeftRight, TrendingUp } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ProductFormValues } from '@/app/(main)/inventory/add-product-form';
-import { useRouter } from 'next/navigation';
-import { useUser, useCollection, useFirestore, useAuth, useMemoFirebase } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, doc, addDoc, updateDoc, deleteDoc, writeBatch, serverTimestamp, Timestamp } from 'firebase/firestore';
-import { signInWithEmailAndPassword, signOut as firebaseSignOut } from 'firebase/auth';
 
 type GroupedTransactions = {
   [date: string]: Transaction[];
@@ -20,8 +18,6 @@ type ProductCount = {
 };
 
 type AppContextType = {
-  user: any | null;
-  isUserLoading: boolean;
   products: Product[];
   transactions: Transaction[];
   loading: {
@@ -38,21 +34,16 @@ type AppContextType = {
   deleteProduct: (productId: string) => Promise<void>;
   makeSale: (product: Product) => Promise<void>;
   makeReturn: (product: Product) => Promise<void>;
-  login: (email: string, password: string) => Promise<void>;
-  logout: () => Promise<void>;
 };
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {
   const { toast } = useToast();
-  const router = useRouter();
-  const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
-  const auth = useAuth();
   
-  const productsRef = useMemoFirebase(() => (firestore && user && !isUserLoading) ? collection(firestore, 'products') : null, [firestore, user, isUserLoading]);
-  const transactionsRef = useMemoFirebase(() => (firestore && user && !isUserLoading) ? collection(firestore, 'transactions') : null, [firestore, user, isUserLoading]);
+  const productsRef = useMemoFirebase(() => firestore ? collection(firestore, 'products') : null, [firestore]);
+  const transactionsRef = useMemoFirebase(() => firestore ? collection(firestore, 'transactions') : null, [firestore]);
 
   const { data: productsData, isLoading: productsLoading } = useCollection<Product>(productsRef);
   const { data: transactionsData, isLoading: transactionsLoading } = useCollection<Transaction>(transactionsRef);
@@ -224,8 +215,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
         const relatedTransactions = transactions.filter(t => t.productId === productId);
         relatedTransactions.forEach(t => {
-            const transRef = doc(firestore, 'transactions', t.id);
-            batch.delete(transRef);
+            if (t.id) {
+              const transRef = doc(firestore, 'transactions', t.id);
+              batch.delete(transRef);
+            }
         });
         
         await batch.commit();
@@ -307,31 +300,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const login = async (email: string, password: string) => {
-    if (!auth) return;
-    try {
-        await signInWithEmailAndPassword(auth, email, password);
-        router.push('/dashboard');
-    } catch (error) {
-        console.error("Login error", error)
-        toast({ title: 'Giriş Başarısız', description: 'E-posta veya şifre yanlış.', variant: 'destructive' });
-    }
-  };
-
-  const logout = async () => {
-    if (!auth) return;
-    try {
-        await firebaseSignOut(auth);
-        router.push('/login');
-    } catch(error) {
-        console.error("Logout error", error);
-        toast({ title: 'Çıkış Hatası', description: 'Oturum kapatılırken bir sorun oluştu.', variant: 'destructive' });
-    }
-  };
-
   const value: AppContextType = {
-    user,
-    isUserLoading,
     products,
     transactions,
     loading: {
@@ -348,8 +317,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     deleteProduct,
     makeSale,
     makeReturn,
-    login,
-    logout,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
