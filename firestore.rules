@@ -1,114 +1,52 @@
 /**
- * @fileoverview Firestore Security Rules for SZN Auto Manager.
+ * @fileoverview Firestore Security Rules for Auto Accessory App
  *
  * Core Philosophy:
- * This ruleset provides basic protection against unauthorized data access.
- * It assumes that all write operations should be authenticated.
- * Read operations are generally public in this prototyping phase to enable faster UI development.
- * More granular access control and data validation will be implemented in later iterations.
+ * This ruleset enforces a security model where all authenticated users have read access to product and transaction data,
+ * but write access is completely denied to all users.
  *
  * Data Structure:
- * The database consists of four top-level collections: `products`, `sales`, `purchases`, and `refunds`.
- * Each collection contains documents representing the corresponding entities.
- * Relationships between entities are established using document IDs as foreign keys (e.g., `sale.productId` references `product.id`).
+ * The database consists of two top-level collections: `/products/{productId}` and `/transactions/{transactionId}`.
  *
  * Key Security Decisions:
- * - Read access (get, list) is generally public for ease of development.
- * - Write access (create, update, delete) requires authentication.
- * - No complex role-based access control is implemented in this initial version.
- *
- * Denormalization for Authorization:
- * - No explicit denormalization is performed in this version.
- *   Future iterations will likely require denormalization to avoid `get()` calls in rules.
- *
- * Structural Segregation:
- * - No structural segregation is used in this version. All data resides in top-level collections.
+ * - All authenticated users can read the entire product catalog and transaction history.
+ * - No users can create, update, or delete products or transactions.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Allows read access to all products. Only authenticated users can create, update, or delete products.
+     * @description Grants read access to all products, but restricts write access.
      * @path /products/{productId}
-     * @allow (get, list)
-     * @allow (create) User is authenticated.
-     * @allow (update) User is authenticated.
-     * @allow (delete) User is authenticated.
-     * @deny (create) User is not authenticated.
-     * @deny (update) User is not authenticated.
-     * @deny (delete) User is not authenticated.
-     * @principle Requires authentication for all write operations.
+     * @allow (get, list): Any authenticated user can read product details.
+     * @deny (create, update, delete): No user can modify product information.
+     * @principle Allows open reads, denies writes.
      */
     match /products/{productId} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
 
     /**
-     * @description Allows read access to all sales. Only authenticated users can create, update, or delete sales.
-     * @path /sales/{saleId}
-     * @allow (get, list)
-     * @allow (create) User is authenticated.
-     * @allow (update) User is authenticated.
-     * @allow (delete) User is authenticated.
-     * @deny (create) User is not authenticated.
-     * @deny (update) User is not authenticated.
-     * @deny (delete) User is not authenticated.
-     * @principle Requires authentication for all write operations.
+     * @description Grants read access to all transactions, but restricts write access.
+     * @path /transactions/{transactionId}
+     * @allow (get, list): Any authenticated user can read transaction details.
+     * @deny (create, update, delete): No user can modify transaction information.
+     * @principle Allows open reads, denies writes.
      */
-    match /sales/{saleId} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+    match /transactions/{transactionId} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
 
-    /**
-     * @description Allows read access to all purchases. Only authenticated users can create, update, or delete purchases.
-     * @path /purchases/{purchaseId}
-     * @allow (get, list)
-     * @allow (create) User is authenticated.
-     * @allow (update) User is authenticated.
-     * @allow (delete) User is authenticated.
-     * @deny (create) User is not authenticated.
-     * @deny (update) User is not authenticated.
-     * @deny (delete) User is not authenticated.
-     * @principle Requires authentication for all write operations.
-     */
-    match /purchases/{purchaseId} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
-    }
-
-    /**
-     * @description Allows read access to all refunds. Only authenticated users can create, update, or delete refunds.
-     * @path /refunds/{refundId}
-     * @allow (get, list)
-     * @allow (create) User is authenticated.
-     * @allow (update) User is authenticated.
-     * @allow (delete) User is authenticated.
-     * @deny (create) User is not authenticated.
-     * @deny (update) User is not authenticated.
-     * @deny (delete) User is not authenticated.
-     * @principle Requires authentication for all write operations.
-     */
-    match /refunds/{refundId} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
-    }
-
-    // Helper function to determine if a user is signed in.
+    // Helper function to determine if the user is signed in
     function isSignedIn() {
       return request.auth != null;
     }

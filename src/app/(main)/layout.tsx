@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { useUser } from '@/firebase';
 import { useEffect } from 'react';
-import { AppProvider, useAppContext } from '@/context/AppContext';
+import { useAppContext } from '@/context/AppContext';
 import { signOut } from 'firebase/auth';
 import { useAuth } from '@/firebase';
 
@@ -25,6 +25,7 @@ function PageHeader() {
   const router = useRouter();
 
   const handleLogout = async () => {
+    if (!auth) return;
     await signOut(auth);
     router.push('/login');
   }
@@ -102,21 +103,19 @@ export default function MainLayout({
   }
 
   return (
-      <AppProvider>
-        <div className="relative min-h-screen">
-          {bgImage && (
-            <Image
-              src={bgImage.imageUrl}
-              alt={bgImage.description}
-              fill
-              className="object-cover opacity-5 -z-10"
-              data-ai-hint={bgImage.imageHint}
-              priority
-            />
-          )}
-          <PageHeader />
-          <MainContent>{children}</MainContent>
-        </div>
-      </AppProvider>
+      <div className="relative min-h-screen">
+        {bgImage && (
+          <Image
+            src={bgImage.imageUrl}
+            alt={bgImage.description}
+            fill
+            className="object-cover opacity-5 -z-10"
+            data-ai-hint={bgImage.imageHint}
+            priority
+          />
+        )}
+        <PageHeader />
+        <MainContent>{children}</MainContent>
+      </div>
   );
 }
