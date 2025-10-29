@@ -51,7 +51,7 @@ export default function LoginPage() {
   }, [user, isUserLoading, router]);
 
   async function onSubmit(values: LoginFormValues) {
-    await login(values);
+    await login(values.email, values.password);
   }
 
   return (
@@ -115,5 +115,3 @@ export default function LoginPage() {
     </div>
   );
 }
-
-    

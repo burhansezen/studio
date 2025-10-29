@@ -4,35 +4,9 @@ import React, { createContext, useContext, useState, ReactNode, useMemo, useEffe
 import type { Product, Transaction, SummaryCardData } from '@/lib/types';
 import { DollarSign, ShoppingBag, ArrowLeftRight, TrendingUp } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { 
-  FirebaseProvider,
-  useCollection, 
-  initializeFirebase,
-  useMemoFirebase,
-} from '@/firebase';
-import { 
-  collection, 
-  doc, 
-  writeBatch,
-  serverTimestamp, 
-  query, 
-  orderBy,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  Timestamp,
-} from 'firebase/firestore';
-import { 
-    signInWithEmailAndPassword,
-    signOut,
-    createUserWithEmailAndPassword,
-    onAuthStateChanged,
-    type User
-} from 'firebase/auth';
-import { getStorage, ref, uploadString, getDownloadURL, deleteObject } from "firebase/storage";
 import { ProductFormValues } from '@/app/(main)/inventory/add-product-form';
 import { useRouter } from 'next/navigation';
-import { Toaster } from '@/components/ui/toaster';
+import { products as initialProducts, transactions as initialTransactions } from '@/lib/data';
 
 type GroupedTransactions = {
   [date: string]: Transaction[];
@@ -43,17 +17,15 @@ type ProductCount = {
   count: number;
 };
 
-type LoginCredentials = {
+type User = {
     email: string;
-    password?: string;
-};
-
+}
 
 type AppContextType = {
   user: User | null;
   isUserLoading: boolean;
-  products: Product[] | null;
-  transactions: Transaction[] | null;
+  products: Product[];
+  transactions: Transaction[];
   loading: {
     products: boolean;
     transactions: boolean;
@@ -68,53 +40,45 @@ type AppContextType = {
   deleteProduct: (productId: string) => Promise<void>;
   makeSale: (product: Product) => Promise<void>;
   makeReturn: (product: Product) => Promise<void>;
-  login: (credentials: LoginCredentials) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 };
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-const useUserHook = () => {
-    const { auth } = initializeFirebase();
-    const [user, setUser] = useState<User | null>(null);
-    const [isUserLoading, setIsUserLoading] = useState(true);
-
-    useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, (user) => {
-            setUser(user);
-            setIsUserLoading(false);
-        });
-        return () => unsubscribe();
-    }, [auth]);
-
-    return { user, isUserLoading, auth };
-};
-
-const AppContextProviderContent = ({ children }: { children: ReactNode }) => {
+export const AppProvider = ({ children }: { children: ReactNode }) => {
   const { toast } = useToast();
-  const { firestore } = initializeFirebase();
-  const { user, isUserLoading, auth } = useUserHook();
   const router = useRouter();
 
-  const productsQuery = useMemoFirebase(() => user ? query(collection(firestore, 'products'), orderBy('lastPurchaseDate', 'desc')) : null, [firestore, user]);
-  const { data: products, isLoading: productsLoading } = useCollection<Product>(productsQuery);
+  const [user, setUser] = useState<User | null>(null);
+  const [isUserLoading, setIsUserLoading] = useState(true);
 
-  const transactionsQuery = useMemoFirebase(() => user ? query(collection(firestore, 'transactions'), orderBy('dateTime', 'desc')) : null, [firestore, user]);
-  const { data: transactions, isLoading: transactionsLoading } = useCollection<Transaction>(transactionsQuery);
+  const [products, setProducts] = useState<Product[]>(initialProducts);
+  const [transactions, setTransactions] = useState<Transaction[]>(initialTransactions);
+  const [loading, setLoading] = useState({ products: true, transactions: true });
+  
+  useEffect(() => {
+    // Simulate loading data
+    setTimeout(() => {
+        setProducts(initialProducts.sort((a,b) => new Date(b.lastPurchaseDate).getTime() - new Date(a.lastPurchaseDate).getTime()));
+        setTransactions(initialTransactions.sort((a,b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime()));
+        setLoading({ products: false, transactions: false });
+    }, 500);
+
+    // Simulate checking auth status
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+        setUser(JSON.parse(storedUser));
+    }
+    setIsUserLoading(false);
+
+  }, []);
   
   const totalStock = useMemo(() => {
-    if (!products) return 0;
     return products.reduce((sum, product) => sum + product.stock, 0);
   }, [products]);
   
   const summaryData = useMemo(() => {
-    if (!transactions || !products) return [
-        { title: 'Net Gelir', value: '₺0', change: '', icon: DollarSign },
-        { title: 'Toplam Kâr', value: '₺0', change: '', icon: TrendingUp },
-        { title: 'Satışlar', value: '+₺0', change: '', icon: ShoppingBag },
-        { title: 'İadeler', value: '₺0', change: '', icon: ArrowLeftRight },
-    ];
-
     const totalRevenue = transactions.filter(t => t.type === 'Satış').reduce((sum, t) => sum + t.amount, 0);
     const totalReturns = transactions.filter(t => t.type === 'İade').reduce((sum, t) => sum + t.amount, 0);
     const netIncome = totalRevenue + totalReturns;
@@ -139,20 +103,17 @@ const AppContextProviderContent = ({ children }: { children: ReactNode }) => {
   }, [transactions, products]);
 
   const groupedTransactions = useMemo(() => {
-    if (!transactions) return {};
     return transactions.reduce((acc, transaction) => {
-      const date = transaction.dateTime.toDate().toISOString().split('T')[0];
+      const date = new Date(transaction.dateTime).toISOString().split('T')[0];
       if (!acc[date]) {
         acc[date] = [];
       }
       acc[date].push(transaction);
-      // Sorting within group is implicitly handled by the initial query sort
       return acc;
     }, {} as GroupedTransactions);
   }, [transactions]);
 
   const topSellingProducts = useMemo(() => {
-    if(!transactions) return [];
     const sales = transactions.filter(t => t.type === 'Satış');
     const productCounts = sales.reduce((acc, sale) => {
       acc[sale.productName] = (acc[sale.productName] || 0) + sale.quantity;
@@ -166,7 +127,6 @@ const AppContextProviderContent = ({ children }: { children: ReactNode }) => {
   }, [transactions]);
 
   const topReturningProducts = useMemo(() => {
-    if(!transactions) return [];
     const returns = transactions.filter(t => t.type === 'İade');
     const productCounts = returns.reduce((acc, ret) => {
       acc[ret.productName] = (acc[ret.productName] || 0) + ret.quantity;
@@ -179,46 +139,31 @@ const AppContextProviderContent = ({ children }: { children: ReactNode }) => {
       .slice(0, 5);
   }, [transactions]);
 
-  const uploadImage = async (file: File): Promise<string> => {
-    const storage = getStorage();
-    const storageRef = ref(storage, `products/${Date.now()}_${file.name}`);
-    
+  const getBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
-        reader.onload = async (e) => {
-            try {
-                const dataUrl = e.target?.result as string;
-                await uploadString(storageRef, dataUrl, 'data_url');
-                const downloadURL = await getDownloadURL(storageRef);
-                resolve(downloadURL);
-            } catch (error) {
-                console.error("Image upload failed:", error);
-                reject(error);
-            }
-        };
-        reader.onerror = (error) => {
-            console.error("FileReader error:", error);
-            reject(error);
-        };
         reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = error => reject(error);
     });
-  };
+  }
 
   const addProduct = async (productData: ProductFormValues) => {
-    if (!firestore) return;
     try {
-      let imageUrl = '';
+      let imageUrl = 'https://placehold.co/400x300';
       if (productData.image && productData.image.length > 0) {
-        imageUrl = await uploadImage(productData.image[0]);
+        imageUrl = await getBase64(productData.image[0]);
       }
       
-      const { image, lastPurchaseDate, ...rest } = productData;
+      const { image, ...rest } = productData;
 
-      await addDoc(collection(firestore, 'products'), {
+      const newProduct: Product = {
         ...rest,
+        id: `prod_${Date.now()}`,
         imageUrl,
-        lastPurchaseDate: Timestamp.fromDate(lastPurchaseDate),
-      });
+      };
+
+      setProducts(prev => [newProduct, ...prev]);
 
       toast({
         title: "Ürün Eklendi",
@@ -235,25 +180,27 @@ const AppContextProviderContent = ({ children }: { children: ReactNode }) => {
   };
 
   const updateProduct = async (productId: string, productData: ProductFormValues) => {
-    if (!firestore) return;
-    const productRef = doc(firestore, 'products', productId);
     try {
       let imageUrl: string | undefined = undefined;
       if (productData.image && productData.image.length > 0) {
-        // Note: This could lead to orphaned images in storage if not managed
-        imageUrl = await uploadImage(productData.image[0]);
+        imageUrl = await getBase64(productData.image[0]);
       }
       
-      const { image, lastPurchaseDate, ...rest } = productData;
-      const updateData: Partial<Omit<ProductFormValues, 'image'|'lastPurchaseDate'> & {imageUrl?: string, lastPurchaseDate: Timestamp}> = {
-          ...rest,
-          lastPurchaseDate: Timestamp.fromDate(lastPurchaseDate),
-      };
-      if(imageUrl) {
-        updateData.imageUrl = imageUrl;
-      }
+      const { image, ...rest } = productData;
 
-      await updateDoc(productRef, updateData);
+      setProducts(prev => prev.map(p => {
+        if (p.id === productId) {
+            const updatedProduct: Product = {
+                ...p,
+                ...rest
+            };
+            if(imageUrl) {
+                updatedProduct.imageUrl = imageUrl;
+            }
+            return updatedProduct;
+        }
+        return p;
+      }));
 
       toast({
         title: "Ürün Güncellendi",
@@ -270,169 +217,92 @@ const AppContextProviderContent = ({ children }: { children: ReactNode }) => {
   };
 
   const deleteProduct = async (productId: string) => {
-    if (!firestore || !products) return;
     const productToDelete = products.find(p => p.id === productId);
     if (!productToDelete) return;
+    
+    setProducts(prev => prev.filter(p => p.id !== productId));
+    setTransactions(prev => prev.filter(t => t.productId !== productId));
 
-    try {
-      const batch = writeBatch(firestore);
-
-      // Delete the product document
-      const productRef = doc(firestore, 'products', productId);
-      batch.delete(productRef);
-
-      // Delete product image from storage
-      if (productToDelete.imageUrl) {
-        try {
-          const storage = getStorage();
-          const imageRef = ref(storage, productToDelete.imageUrl);
-          await deleteObject(imageRef);
-        } catch (storageError: any) {
-          // If the image doesn't exist, we can ignore the error
-          if (storageError.code !== 'storage/object-not-found') {
-            console.error("Error deleting product image: ", storageError);
-            // Optionally, you might not want to fail the whole operation for this
-          }
-        }
-      }
-
-      // Find and delete all related transactions
-      const transactionsToDelete = transactions?.filter(t => t.productId === productId);
-      transactionsToDelete?.forEach(t => {
-        const transactionRef = doc(firestore, 'transactions', t.id);
-        batch.delete(transactionRef);
-      });
-      
-      await batch.commit();
-
-      toast({
+    toast({
         title: "Ürün Silindi",
         description: `${productToDelete.name} ve ilgili tüm işlemler silindi.`,
         variant: 'destructive'
-      });
-
-    } catch (error) {
-      console.error("Error deleting product and its transactions: ", error);
-      toast({
-        title: "Hata",
-        description: "Ürün silinirken bir hata oluştu.",
-        variant: 'destructive',
-      });
-    }
+    });
   };
 
   const makeSale = async (product: Product) => {
-    if (!firestore) return;
-    const productRef = doc(firestore, 'products', product.id);
-    const transactionsRef = collection(firestore, 'transactions');
-    try {
-        const batch = writeBatch(firestore);
-
-        // Decrease stock
-        batch.update(productRef, { stock: product.stock - 1 });
-
-        // Add transaction
-        const newTransaction = {
-            type: 'Satış',
-            productId: product.id,
-            productName: product.name,
-            dateTime: serverTimestamp(),
-            quantity: 1,
-            amount: product.sellingPrice,
-        };
-        // Can't use batch with addDoc, so we create a new doc ref
-        const newTransactionRef = doc(transactionsRef);
-        batch.set(newTransactionRef, newTransaction);
-        
-        await batch.commit();
-        
-        toast({
-            title: "Satış Başarılı",
-            description: `${product.name} ürününden 1 adet satıldı.`,
-        });
-    } catch (error) {
-        console.error("Error making sale: ", error);
-        toast({
-            title: "Hata",
-            description: "Satış yapılırken bir hata oluştu.",
-            variant: "destructive"
-        });
+    if (product.stock === 0) {
+        toast({ title: 'Stokta yok', description: 'Bu ürün stokta kalmadı.', variant: 'destructive'});
+        return;
     }
+
+    // Decrease stock
+    setProducts(prev => prev.map(p => p.id === product.id ? {...p, stock: p.stock - 1} : p));
+
+    // Add transaction
+    const newTransaction: Transaction = {
+        id: `trans_${Date.now()}`,
+        type: 'Satış',
+        productId: product.id,
+        productName: product.name,
+        dateTime: new Date(),
+        quantity: 1,
+        amount: product.sellingPrice,
+    };
+    setTransactions(prev => [newTransaction, ...prev]);
+    
+    toast({
+        title: "Satış Başarılı",
+        description: `${product.name} ürününden 1 adet satıldı.`,
+    });
   };
 
    const makeReturn = async (product: Product) => {
-    if (!firestore) return;
-    const productRef = doc(firestore, 'products', product.id);
-    const transactionsRef = collection(firestore, 'transactions');
-    try {
-      const batch = writeBatch(firestore);
-      
-      // Increase stock
-      batch.update(productRef, { stock: product.stock + 1 });
-      
-      // Add return transaction
-      const newTransaction = {
-        type: 'İade',
-        productId: product.id,
-        productName: product.name,
-        dateTime: serverTimestamp(),
-        quantity: 1,
-        amount: -product.sellingPrice, // Negative amount for return
-      };
-      const newTransactionRef = doc(transactionsRef);
-      batch.set(newTransactionRef, newTransaction);
-      
-      await batch.commit();
+    // Increase stock
+    setProducts(prev => prev.map(p => p.id === product.id ? {...p, stock: p.stock + 1} : p));
 
-      toast({
-        title: "İade Başarılı",
-        description: `${product.name} ürününden 1 adet iade alındı.`,
-        variant: 'destructive',
-      });
-    } catch (error) {
-        console.error("Error making return: ", error);
-        toast({
-            title: "Hata",
-            description: "İade yapılırken bir hata oluştu.",
-            variant: "destructive"
-        });
-    }
+    // Add return transaction
+    const newTransaction: Transaction = {
+      id: `trans_${Date.now()}`,
+      type: 'İade',
+      productId: product.id,
+      productName: product.name,
+      dateTime: new Date(),
+      quantity: 1,
+      amount: -product.sellingPrice,
+    };
+    setTransactions(prev => [newTransaction, ...prev]);
+
+    toast({
+      title: "İade Başarılı",
+      description: `${product.name} ürününden 1 adet iade alındı.`,
+      variant: 'destructive',
+    });
   };
 
-  const login = async ({ email, password }: LoginCredentials) => {
-    if (!password) { 
-        toast({ title: 'Hata', description: 'Şifre gerekli.', variant: 'destructive' });
-        return;
-    }
-    try {
-        await signInWithEmailAndPassword(auth, email, password);
+  const login = async (email: string, password: string) => {
+    if (email === 'SZN@szn.com' && password === '331742') {
+        const userData = { email };
+        setUser(userData);
+        localStorage.setItem('user', JSON.stringify(userData));
         router.push('/dashboard');
-    } catch (error) {
-        console.error("Login Error: ", error);
+    } else {
         toast({ title: 'Giriş Başarısız', description: 'E-posta veya şifre yanlış.', variant: 'destructive' });
     }
   };
 
   const logout = async () => {
-      try {
-          await signOut(auth);
-          router.push('/login');
-      } catch (error) {
-          console.error("Logout Error: ", error);
-          toast({ title: 'Hata', description: 'Çıkış yapılırken bir sorun oluştu.', variant: 'destructive' });
-      }
+    setUser(null);
+    localStorage.removeItem('user');
+    router.push('/login');
   };
-
 
   const value: AppContextType = {
     user,
     isUserLoading,
     products,
-    transactions: transactions || [],
-    loading: {
-        products: productsLoading,
-        transactions: transactionsLoading
-    },
+    transactions,
+    loading,
     summaryData,
     totalStock,
     groupedTransactions,
@@ -449,21 +319,6 @@ const AppContextProviderContent = ({ children }: { children: ReactNode }) => {
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }
-
-
-export const AppProvider = ({ children }: { children: ReactNode }) => {
-  const { firebaseApp, auth, firestore } = initializeFirebase();
-
-  return (
-    <FirebaseProvider firebaseApp={firebaseApp} auth={auth} firestore={firestore}>
-      <AppContextProviderContent>
-        {children}
-      </AppContextProviderContent>
-      <Toaster />
-    </FirebaseProvider>
-  );
-};
-
 
 export const useAppContext = () => {
   const context = useContext(AppContext);

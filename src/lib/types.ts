@@ -1,6 +1,4 @@
 import type { LucideIcon } from 'lucide-react';
-import type { Timestamp } from 'firebase/firestore';
-
 
 export interface Product {
   id: string;
@@ -10,7 +8,7 @@ export interface Product {
   sellingPrice: number;
   compatibility: string;
   imageUrl: string;
-  lastPurchaseDate: Timestamp;
+  lastPurchaseDate: Date;
 }
 
 export interface Transaction {
@@ -18,7 +16,7 @@ export interface Transaction {
   type: 'Alış' | 'Satış' | 'İade';
   productId: string;
   productName: string;
-  dateTime: Timestamp;
+  dateTime: Date;
   quantity: number;
   amount: number;
 }
@@ -29,5 +27,3 @@ export interface SummaryCardData {
   change: string;
   icon: LucideIcon;
 }
-
-    

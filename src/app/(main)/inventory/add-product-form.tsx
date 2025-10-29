@@ -79,26 +79,16 @@ export function ProductForm({ onSubmit, product }: ProductFormProps) {
   const form = useForm<z.infer<typeof currentSchema>>({
     resolver: zodResolver(currentSchema),
     defaultValues: product ? {
-        name: product.name,
-        stock: product.stock,
-        purchasePrice: product.purchasePrice,
-        sellingPrice: product.sellingPrice,
-        compatibility: product.compatibility,
+        ...product,
         image: undefined,
-        lastPurchaseDate: product.lastPurchaseDate.toDate(),
     } : defaultFormValues,
   });
 
   useEffect(() => {
     if (product) {
       form.reset({
-        name: product.name,
-        stock: product.stock,
-        purchasePrice: product.purchasePrice,
-        sellingPrice: product.sellingPrice,
-        compatibility: product.compatibility,
+        ...product,
         image: undefined,
-        lastPurchaseDate: product.lastPurchaseDate.toDate(),
       });
     } else {
        form.reset(defaultFormValues);
@@ -109,9 +99,6 @@ export function ProductForm({ onSubmit, product }: ProductFormProps) {
 
   function handleFormSubmit(values: z.infer<typeof currentSchema>) {
     onSubmit(values as ProductFormValues);
-    if (!product) {
-        form.reset(defaultFormValues);
-    }
   }
 
   return (
