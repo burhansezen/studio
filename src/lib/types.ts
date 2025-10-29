@@ -9,15 +9,16 @@ export interface Product {
   sellingPrice: number;
   compatibility: string;
   imageUrl: string;
-  lastPurchaseDate: string | Date; // Can be string from firestore or Date object
+  lastPurchaseDate: string | Date | Timestamp;
+  createdAt: string | Date | Timestamp;
 }
 
 export interface Transaction {
   id: string;
-  type: 'Alış' | 'Satış' | 'İade';
+  type: 'Satış' | 'İade';
   productId: string;
   productName: string;
-  dateTime: string | Date; // Can be string from firestore or Date object
+  dateTime: string | Date | Timestamp;
   quantity: number;
   amount: number;
 }

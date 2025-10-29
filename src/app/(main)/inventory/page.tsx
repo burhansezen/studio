@@ -43,6 +43,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useAppContext } from '@/context/AppContext';
+import { Timestamp } from 'firebase/firestore';
 
 export default function InventoryPage() {
   const { products, addProduct, updateProduct, deleteProduct, totalStock, makeReturn, loading } = useAppContext();
@@ -68,6 +69,13 @@ export default function InventoryPage() {
     setDialogOpen(true);
   }
 
+  const toDate = (timestamp: string | Date | Timestamp) => {
+    if (timestamp instanceof Timestamp) {
+      return timestamp.toDate();
+    }
+    return new Date(timestamp);
+  }
+
   const handleExport = () => {
     if(!products) return;
     const csvData = products.map(({ name, stock, sellingPrice, compatibility, lastPurchaseDate }) => ({
@@ -75,8 +83,7 @@ export default function InventoryPage() {
       "Stok Adedi": stock,
       "Satış Fiyatı (TRY)": sellingPrice,
       "Uyumluluk": compatibility,
-      // Firestore timestamp'i Date'e çevir
-      "Son Alım Tarihi": lastPurchaseDate instanceof Date ? lastPurchaseDate.toLocaleDateString('tr-TR') : new Date(lastPurchaseDate.seconds * 1000).toLocaleDateString('tr-TR'),
+      "Son Alım Tarihi": toDate(lastPurchaseDate).toLocaleDateString('tr-TR'),
     }));
     const csv = Papa.unparse(csvData);
     const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' });
@@ -187,7 +194,7 @@ export default function InventoryPage() {
                     {product.compatibility}
                   </TableCell>
                   <TableCell className="hidden md:table-cell">
-                    { product.lastPurchaseDate instanceof Date ? product.lastPurchaseDate.toLocaleDateString('tr-TR') : new Date(product.lastPurchaseDate.seconds * 1000).toLocaleDateString('tr-TR')}
+                    { toDate(product.lastPurchaseDate).toLocaleDateString('tr-TR')}
                   </TableCell>
                   <TableCell>
                   <div className="flex gap-2 justify-end">

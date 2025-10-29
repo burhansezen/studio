@@ -26,18 +26,18 @@
           "description": "Details about which vehicles this product is compatible with."
         },
         "imageUrl": {
-            "type": "string",
-            "description": "URL of the product image."
+          "type": "string",
+          "description": "URL of the product image."
         },
         "lastPurchaseDate": {
-            "type": "string",
-            "format": "date-time",
-            "description": "The date of the last purchase."
+          "type": "string",
+          "format": "date-time",
+          "description": "The date of the last purchase."
         },
         "createdAt": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Timestamp of when the product was created."
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp of when the product was created."
         }
       },
       "required": [
@@ -57,7 +57,10 @@
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["Satış", "İade"],
+          "enum": [
+            "Satış",
+            "İade"
+          ],
           "description": "Type of the transaction."
         },
         "productId": {
@@ -65,8 +68,8 @@
           "description": "Reference to the Product."
         },
         "productName": {
-            "type": "string",
-            "description": "Name of the product in the transaction."
+          "type": "string",
+          "description": "Name of the product in the transaction."
         },
         "dateTime": {
           "type": "string",
@@ -105,10 +108,10 @@
       "description": "Stores details for each auto accessory product."
     },
     "/transactions/{transactionId}": {
-        "schema": {
-            "$ref": "#/entities/Transaction"
-        },
-        "description": "Stores all sale and return transactions."
+      "schema": {
+        "$ref": "#/entities/Transaction"
+      },
+      "description": "Stores all sale and return transactions."
     }
   }
 }

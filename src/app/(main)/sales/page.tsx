@@ -71,11 +71,11 @@ export default function SalesPage() {
                    <div className="font-bold text-xl text-primary font-headline">
                       {product.sellingPrice.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}
                     </div>
-                   <Badge variant={product.stockQuantity < 10 ? 'destructive' : 'outline'}>
-                     {product.stockQuantity} adet stokta
+                   <Badge variant={product.stock < 10 ? 'destructive' : 'outline'}>
+                     {product.stock} adet stokta
                    </Badge>
                 </div>
-                <Button className="w-full" disabled={product.stockQuantity === 0} onClick={() => makeSale(product.id)}>
+                <Button className="w-full" disabled={product.stock === 0} onClick={() => makeSale(product)}>
                   <ShoppingCart className="mr-2 h-4 w-4" />
                   Satış Yap
                 </Button>
