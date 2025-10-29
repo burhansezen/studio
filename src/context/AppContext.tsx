@@ -53,8 +53,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isUserLoading, setIsUserLoading] = useState(true);
 
-  const [products, setProducts] = useState<Product[]>(initialProducts);
-  const [transactions, setTransactions] = useState<Transaction[]>(initialTransactions);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState({ products: true, transactions: true });
   
   useEffect(() => {
@@ -66,9 +66,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }, 500);
 
     // Simulate checking auth status
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-        setUser(JSON.parse(storedUser));
+    try {
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+          setUser(JSON.parse(storedUser));
+      }
+    } catch (error) {
+      console.error("Failed to parse user from localStorage", error);
+      localStorage.removeItem('user');
     }
     setIsUserLoading(false);
 
@@ -249,7 +254,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         quantity: 1,
         amount: product.sellingPrice,
     };
-    setTransactions(prev => [newTransaction, ...prev]);
+    setTransactions(prev => [newTransaction, ...prev].sort((a,b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime()));
     
     toast({
         title: "Satış Başarılı",
@@ -271,7 +276,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       quantity: 1,
       amount: -product.sellingPrice,
     };
-    setTransactions(prev => [newTransaction, ...prev]);
+    setTransactions(prev => [newTransaction, ...prev].sort((a,b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime()));
 
     toast({
       title: "İade Başarılı",
