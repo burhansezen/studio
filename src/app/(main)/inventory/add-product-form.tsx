@@ -187,7 +187,7 @@ export function ProductForm({ onSubmit, product }: ProductFormProps) {
                       )}
                     >
                       {field.value ? (
-                        format(field.value, "PPP")
+                        format(field.value, "PPP", { locale: require('date-fns/locale/tr') })
                       ) : (
                         <span>Bir tarih seçin</span>
                       )}
@@ -204,6 +204,7 @@ export function ProductForm({ onSubmit, product }: ProductFormProps) {
                       date > new Date() || date < new Date("1900-01-01")
                     }
                     initialFocus
+                    locale={require('date-fns/locale/tr')}
                   />
                 </PopoverContent>
               </Popover>

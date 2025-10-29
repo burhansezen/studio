@@ -10,6 +10,7 @@ import React, {
   useCallback,
 } from 'react';
 import type { Product, Transaction, SummaryCardData } from '@/lib/types';
+import { products as initialProducts, transactions as initialTransactions } from '@/lib/data';
 import {
   DollarSign,
   ShoppingBag,
@@ -18,19 +19,6 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { ProductFormValues } from '@/app/(main)/inventory/add-product-form';
-import { useAuth, useFirestore } from '@/firebase';
-import {
-  collection,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  doc,
-  serverTimestamp,
-  query,
-  orderBy,
-  onSnapshot,
-  writeBatch,
-} from 'firebase/firestore';
 
 type GroupedTransactions = {
   [date: string]: Transaction[];
@@ -65,66 +53,9 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {
   const { toast } = useToast();
-  const { user } = useAuth();
-  const firestore = useFirestore();
-  const [products, setProducts] = useState<Product[]>([]);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [loading, setLoading] = useState({ products: true, transactions: true });
-
-  useEffect(() => {
-    if (!firestore || !user) {
-      setProducts([]);
-      setTransactions([]);
-      return;
-    }
-
-    setLoading({ products: true, transactions: true });
-
-    const productsQuery = query(
-      collection(firestore, 'products'),
-      orderBy('createdAt', 'desc')
-    );
-    const productsUnsub = onSnapshot(
-      productsQuery,
-      (snapshot) => {
-        const productList = snapshot.docs.map(
-          (doc) => ({ id: doc.id, ...doc.data() } as Product)
-        );
-        setProducts(productList);
-        setLoading((prev) => ({ ...prev, products: false }));
-      },
-      (error) => {
-        console.error('Error fetching products:', error);
-        toast({ title: 'Hata', description: 'Ürünler yüklenemedi.', variant: 'destructive' });
-        setLoading((prev) => ({ ...prev, products: false }));
-      }
-    );
-
-    const transactionsQuery = query(
-      collection(firestore, 'transactions'),
-      orderBy('dateTime', 'desc')
-    );
-    const transactionsUnsub = onSnapshot(
-      transactionsQuery,
-      (snapshot) => {
-        const transactionList = snapshot.docs.map(
-          (doc) => ({ id: doc.id, ...doc.data() } as Transaction)
-        );
-        setTransactions(transactionList.map(t => ({...t, dateTime: (t.dateTime as any).toDate() })));
-        setLoading((prev) => ({ ...prev, transactions: false }));
-      },
-      (error) => {
-        console.error('Error fetching transactions:', error);
-        toast({ title: 'Hata', description: 'İşlemler yüklenemedi.', variant: 'destructive' });
-        setLoading((prev) => ({ ...prev, transactions: false }));
-      }
-    );
-
-    return () => {
-      productsUnsub();
-      transactionsUnsub();
-    };
-  }, [firestore, user, toast]);
+  const [products, setProducts] = useState<Product[]>(initialProducts);
+  const [transactions, setTransactions] = useState<Transaction[]>(initialTransactions);
+  const [loading, setLoading] = useState({ products: false, transactions: false });
 
   const toDate = (date: string | Date): Date => {
     return new Date(date);
@@ -223,77 +154,49 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   }, [transactions]);
 
   const addProduct = useCallback(async (productData: ProductFormValues) => {
-    if (!firestore) return;
-    try {
-      const newProductData = {
-        ...productData,
-        imageUrl: productData.image ? 'WILL_BE_UPLOADED' : 'https://placehold.co/400x300', // Placeholder
-        createdAt: serverTimestamp(),
-      };
-      delete (newProductData as any).image;
-      await addDoc(collection(firestore, 'products'), newProductData);
-
-      toast({
-        title: 'Ürün Eklendi',
-        description: `${productData.name} başarıyla eklendi.`,
-      });
-    } catch (error) {
-      console.error('Error adding product: ', error);
-      toast({
-        title: 'Hata',
-        description: 'Ürün eklenirken bir hata oluştu.',
-        variant: 'destructive',
-      });
-    }
-  }, [firestore, toast]);
+    const newProduct: Product = {
+      id: new Date().getTime().toString(), // Simple unique ID
+      ...productData,
+      imageUrl: productData.image ? URL.createObjectURL(productData.image[0]) : 'https://placehold.co/400x300',
+      createdAt: new Date(),
+    };
+    setProducts(prev => [newProduct, ...prev]);
+    toast({
+      title: 'Ürün Eklendi',
+      description: `${productData.name} başarıyla eklendi.`,
+    });
+  }, [toast]);
 
   const updateProduct = useCallback(async (
     productId: string,
     productData: ProductFormValues
   ) => {
-    if (!firestore) return;
-    try {
-      const productRef = doc(firestore, 'products', productId);
-      const updateData = { ...productData };
-      delete (updateData as any).image; // Remove image from data to be sent to firestore
-
-      await updateDoc(productRef, updateData);
-
-      toast({
-        title: 'Ürün Güncellendi',
-        description: `${productData.name} başarıyla güncellendi.`,
-      });
-    } catch (error) {
-      console.error('Error updating product: ', error);
-      toast({
-        title: 'Hata',
-        description: 'Ürün güncellenirken bir hata oluştu.',
-        variant: 'destructive',
-      });
-    }
-  }, [firestore, toast]);
+    setProducts(prev => prev.map(p => {
+      if (p.id === productId) {
+        return {
+          ...p,
+          ...productData,
+          imageUrl: productData.image && productData.image.length > 0 ? URL.createObjectURL(productData.image[0]) : p.imageUrl,
+        };
+      }
+      return p;
+    }));
+    toast({
+      title: 'Ürün Güncellendi',
+      description: `${productData.name} başarıyla güncellendi.`,
+    });
+  }, [toast]);
 
   const deleteProduct = useCallback(async (productId: string) => {
-    if (!firestore) return;
-    try {
-      await deleteDoc(doc(firestore, 'products', productId));
-      toast({
-        title: 'Ürün Silindi',
-        description: 'Ürün envanterden kaldırıldı.',
-        variant: 'destructive',
-      });
-    } catch (error) {
-      console.error('Error deleting product: ', error);
-      toast({
-        title: 'Hata',
-        description: 'Ürün silinirken bir sorun oluştu.',
-        variant: 'destructive',
-      });
-    }
-  }, [firestore, toast]);
+    setProducts(prev => prev.filter(p => p.id !== productId));
+    toast({
+      title: 'Ürün Silindi',
+      description: 'Ürün envanterden kaldırıldı.',
+      variant: 'destructive',
+    });
+  }, [toast]);
 
   const makeSale = useCallback(async (product: Product) => {
-    if (!firestore) return;
     if (product.stock === 0) {
       toast({
         title: 'Stokta yok',
@@ -303,108 +206,55 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
 
-    try {
-      const batch = writeBatch(firestore);
+    setProducts(prev => prev.map(p => 
+      p.id === product.id ? { ...p, stock: p.stock - 1 } : p
+    ));
 
-      const productRef = doc(firestore, 'products', product.id);
-      batch.update(productRef, { stock: product.stock - 1 });
+    const newTransaction: Transaction = {
+      id: new Date().getTime().toString(),
+      type: 'Satış',
+      productId: product.id,
+      productName: product.name,
+      dateTime: new Date(),
+      quantity: 1,
+      amount: product.sellingPrice,
+    };
+    setTransactions(prev => [newTransaction, ...prev]);
 
-      const newTransaction = {
-        type: 'Satış',
-        productId: product.id,
-        productName: product.name,
-        dateTime: serverTimestamp(),
-        quantity: 1,
-        amount: product.sellingPrice,
-      };
-      const transactionRef = doc(collection(firestore, 'transactions'));
-      batch.set(transactionRef, newTransaction);
-      
-      await batch.commit();
-
-      toast({
-        title: 'Satış Başarılı',
-        description: `${product.name} ürününden 1 adet satıldı.`,
-      });
-    } catch (error) {
-      console.error('Error making sale: ', error);
-      toast({
-        title: 'Hata',
-        description: 'Satış işlemi sırasında bir hata oluştu.',
-        variant: 'destructive',
-      });
-    }
-  }, [firestore, toast]);
+    toast({
+      title: 'Satış Başarılı',
+      description: `${product.name} ürününden 1 adet satıldı.`,
+    });
+  }, [toast]);
 
   const makeReturn = useCallback(async (product: Product) => {
-    if (!firestore) return;
-    try {
-       const batch = writeBatch(firestore);
+    setProducts(prev => prev.map(p => 
+      p.id === product.id ? { ...p, stock: p.stock + 1 } : p
+    ));
 
-      const productRef = doc(firestore, 'products', product.id);
-      batch.update(productRef, { stock: product.stock + 1 });
+    const newTransaction: Transaction = {
+      id: new Date().getTime().toString(),
+      type: 'İade',
+      productId: product.id,
+      productName: product.name,
+      dateTime: new Date(),
+      quantity: 1,
+      amount: -product.sellingPrice,
+    };
+    setTransactions(prev => [newTransaction, ...prev]);
 
-      const newTransaction = {
-        type: 'İade',
-        productId: product.id,
-        productName: product.name,
-        dateTime: serverTimestamp(),
-        quantity: 1,
-        amount: -product.sellingPrice,
-      };
-
-      const transactionRef = doc(collection(firestore, 'transactions'));
-      batch.set(transactionRef, newTransaction);
-      
-      await batch.commit();
-
-      toast({
-        title: 'İade Başarılı',
-        description: `${product.name} ürününden 1 adet iade alındı.`,
-        variant: 'destructive',
-      });
-    } catch (error) {
-      console.error('Error making return: ', error);
-      toast({
-        title: 'Hata',
-        description: 'İade işlemi sırasında bir hata oluştu.',
-        variant: 'destructive',
-      });
-    }
-  }, [firestore, toast]);
+    toast({
+      title: 'İade Başarılı',
+      description: `${product.name} ürününden 1 adet iade alındı.`,
+      variant: 'destructive',
+    });
+  }, [toast]);
   
   const loadBackup = useCallback(async (data: BackupData) => {
-      if (!firestore) return;
       setLoading({ products: true, transactions: true });
       try {
-        const batch = writeBatch(firestore);
-
-        // Delete existing data
-        const existingProductsSnapshot = await collection(firestore, 'products').get();
-        existingProductsSnapshot.docs.forEach(doc => batch.delete(doc.ref));
-        
-        const existingTransactionsSnapshot = await collection(firestore, 'transactions').get();
-        existingTransactionsSnapshot.docs.forEach(doc => batch.delete(doc.ref));
-
-        // Add new data
-        data.products.forEach(product => {
-            const productRef = doc(collection(firestore, 'products'));
-            batch.set(productRef, {
-                ...product,
-                lastPurchaseDate: new Date(product.lastPurchaseDate),
-                createdAt: new Date(product.createdAt),
-            });
-        });
-        
-        data.transactions.forEach(transaction => {
-            const transactionRef = doc(collection(firestore, 'transactions'));
-            batch.set(transactionRef, {
-                ...transaction,
-                dateTime: new Date(transaction.dateTime),
-            });
-        });
-        
-        await batch.commit();
+        setProducts(data.products.map(p => ({...p, lastPurchaseDate: new Date(p.lastPurchaseDate), createdAt: new Date(p.createdAt) })));
+        setTransactions(data.transactions.map(t => ({...t, dateTime: new Date(t.dateTime) })));
         
         toast({
             title: 'Yedek Yüklendi',
@@ -420,8 +270,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     } finally {
         setLoading({ products: false, transactions: false });
     }
-  }, [firestore, toast]);
-
+  }, [toast]);
 
   const value: AppContextType = {
     products,
