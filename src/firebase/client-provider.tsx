@@ -1,10 +1,14 @@
 'use client';
 
 import React, { useState, useEffect, type ReactNode } from 'react';
-import { getApps, initializeApp, type FirebaseApp } from 'firebase/app';
+import { initializeApp, type FirebaseApp } from 'firebase/app';
 import { getAuth, type Auth } from 'firebase/auth';
 import { getFirestore, type Firestore } from 'firebase/firestore';
 import { FirebaseProvider } from '@/firebase/provider';
+
+let firebaseApp: FirebaseApp | null = null;
+let auth: Auth | null = null;
+let firestore: Firestore | null = null;
 
 type FirebaseServices = {
   firebaseApp: FirebaseApp;
@@ -13,6 +17,10 @@ type FirebaseServices = {
 };
 
 export function initializeFirebase(): FirebaseServices {
+  if (firebaseApp && auth && firestore) {
+    return { firebaseApp, auth, firestore };
+  }
+
   const firebaseConfig = {
     apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
     authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -22,18 +30,13 @@ export function initializeFirebase(): FirebaseServices {
     appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
   };
 
-  const apps = getApps();
-  const existingApp = apps.length > 0 ? apps[0] : null;
+  const newFirebaseApp = initializeApp(firebaseConfig);
+  const newAuth = getAuth(newFirebaseApp);
+  const newFirestore = getFirestore(newFirebaseApp);
 
-  if (existingApp) {
-    const auth = getAuth(existingApp);
-    const firestore = getFirestore(existingApp);
-    return { firebaseApp: existingApp, auth, firestore };
-  }
-
-  const firebaseApp = initializeApp(firebaseConfig);
-  const auth = getAuth(firebaseApp);
-  const firestore = getFirestore(firebaseApp);
+  firebaseApp = newFirebaseApp;
+  auth = newAuth;
+  firestore = newFirestore;
 
   return { firebaseApp, auth, firestore };
 }
