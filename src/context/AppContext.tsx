@@ -102,46 +102,6 @@ const AppContextProviderContent = ({ children }: { children: ReactNode }) => {
   const transactionsQuery = useMemoFirebase(() => user ? query(collection(firestore, 'transactions'), orderBy('dateTime', 'desc')) : null, [firestore, user]);
   const { data: transactions, isLoading: transactionsLoading } = useCollection<Transaction>(transactionsQuery);
   
-  // Create user on first load
-  useEffect(() => {
-    const initialEmail = 'SZN@szn.com';
-    const initialPassword = '331742';
-    
-    if (isUserLoading) return;
-    
-    const setupInitialUser = async () => {
-        try {
-            // Try to sign in first.
-            await signInWithEmailAndPassword(auth, initialEmail, initialPassword);
-        } catch (error: any) {
-            // If the user does not exist, create it.
-            if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
-                try {
-                    await createUserWithEmailAndPassword(auth, initialEmail, initialPassword);
-                    // The onAuthStateChanged listener will handle the new user state.
-                } catch (creationError) {
-                    console.error("Error creating initial user:", creationError);
-                     toast({
-                        title: "Kritik Hata",
-                        description: "Başlangıç kullanıcısı oluşturulamadı.",
-                        variant: 'destructive',
-                    });
-                }
-            } else if (auth.currentUser) {
-                // Already logged in, do nothing
-            } else {
-                 console.error("Error signing in initial user:", error);
-                 // Don't toast here as it might be confusing for the end user.
-            }
-        }
-    };
-
-    if (!user) {
-        setupInitialUser();
-    }
-  }, [auth, user, isUserLoading, toast]);
-
-
   const totalStock = useMemo(() => {
     if (!products) return 0;
     return products.reduce((sum, product) => sum + product.stock, 0);
@@ -440,7 +400,7 @@ const AppContextProviderContent = ({ children }: { children: ReactNode }) => {
   };
 
   const login = async ({ email, password }: LoginCredentials) => {
-    if (!password) { // Should not happen with form validation
+    if (!password) { 
         toast({ title: 'Hata', description: 'Şifre gerekli.', variant: 'destructive' });
         return;
     }
@@ -496,7 +456,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   return (
     <FirebaseProvider firebaseApp={firebaseApp} auth={auth} firestore={firestore}>
-      <AppContextProviderContent>{children}</AppContextProviderContent>
+      <AppContextProviderContent>
+        {children}
+      </AppContextProviderContent>
       <Toaster />
     </FirebaseProvider>
   );
@@ -510,5 +472,3 @@ export const useAppContext = () => {
   }
   return context;
 };
-
-    

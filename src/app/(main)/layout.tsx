@@ -56,11 +56,9 @@ function PageHeader() {
           </Button>
         ))}
       </nav>
-       <Button variant="outline" size="sm" asChild>
-          <Link href="/login">
-            <LogIn className="mr-2 h-4 w-4" />
-            Giriş
-          </Link>
+       <Button variant="outline" size="sm" onClick={logout}>
+          <LogOut className="mr-2 h-4 w-4" />
+          Çıkış Yap
         </Button>
     </header>
   );
