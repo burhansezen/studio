@@ -256,7 +256,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         ...productData,
         image: undefined, // remove from data to be written
         imageUrl,
-        createdAt: new Date(),
+        createdAt: productData.lastPurchaseDate, // Corrected date handling
+        lastPurchaseDate: productData.lastPurchaseDate,
       });
 
       toast({
@@ -287,8 +288,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
       const updatedData: Partial<Product> & {image?: any} = {
         ...productData,
+        image: undefined, // remove from data to be written
         lastPurchaseDate: productData.lastPurchaseDate,
-        image: undefined,
       };
 
       if (imageUrl) {
