@@ -173,6 +173,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       const newProduct: Product = {
         id: new Date().getTime().toString(), // simple unique id
         ...productData,
+        image: undefined, // property does not exist on Product
         imageUrl: 'https://placehold.co/400x300', // placeholder
         createdAt: new Date(),
         lastPurchaseDate: productData.lastPurchaseDate,
@@ -200,7 +201,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     try {
       setProducts((prev) =>
         prev.map((p) =>
-          p.id === productId ? { ...p, ...productData, lastPurchaseDate: productData.lastPurchaseDate } : p
+          p.id === productId ? { ...p, ...productData, image: undefined, lastPurchaseDate: productData.lastPurchaseDate } : p
         )
       );
 
