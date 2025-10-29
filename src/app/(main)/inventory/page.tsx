@@ -75,7 +75,8 @@ export default function InventoryPage() {
       "Stok Adedi": stock,
       "Satış Fiyatı (TRY)": sellingPrice,
       "Uyumluluk": compatibility,
-      "Son Alım Tarihi": new Date(lastPurchaseDate).toLocaleDateString('tr-TR'),
+      // Firestore timestamp'i Date'e çevir
+      "Son Alım Tarihi": lastPurchaseDate instanceof Date ? lastPurchaseDate.toLocaleDateString('tr-TR') : new Date(lastPurchaseDate.seconds * 1000).toLocaleDateString('tr-TR'),
     }));
     const csv = Papa.unparse(csvData);
     const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' });
@@ -186,7 +187,7 @@ export default function InventoryPage() {
                     {product.compatibility}
                   </TableCell>
                   <TableCell className="hidden md:table-cell">
-                    {new Date(product.lastPurchaseDate).toLocaleDateString('tr-TR')}
+                    { product.lastPurchaseDate instanceof Date ? product.lastPurchaseDate.toLocaleDateString('tr-TR') : new Date(product.lastPurchaseDate.seconds * 1000).toLocaleDateString('tr-TR')}
                   </TableCell>
                   <TableCell>
                   <div className="flex gap-2 justify-end">

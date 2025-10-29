@@ -25,6 +25,7 @@ import type { Transaction } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { useAppContext } from '@/context/AppContext';
 import { Search, TrendingDown, TrendingUp, Loader2 } from 'lucide-react';
+import { Timestamp } from 'firebase/firestore';
 
 export default function DashboardPage() {
   const { summaryData, groupedTransactions, transactions, topSellingProducts, topReturningProducts, loading } = useAppContext();
@@ -35,6 +36,13 @@ export default function DashboardPage() {
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
+  }
+  
+  const toDate = (timestamp: Date | Timestamp) => {
+    if (timestamp instanceof Timestamp) {
+      return timestamp.toDate();
+    }
+    return new Date(timestamp);
   }
 
   return (
@@ -147,7 +155,7 @@ export default function DashboardPage() {
                             {transactionsOnDate.map((transaction: Transaction) => (
                             <TableRow key={transaction.id} className="hover:bg-muted/50">
                                 <TableCell className="font-mono text-muted-foreground">
-                                 {new Date(transaction.dateTime).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
+                                 {toDate(transaction.dateTime).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
                                 </TableCell>
                                 <TableCell className="font-medium">
                                 {transaction.productName}

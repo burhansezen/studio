@@ -6,8 +6,12 @@ import Image from 'next/image';
 import { Car, LayoutDashboard, ShoppingCart, Archive, LogOut, Loader2, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { useAppContext } from '@/context/AppContext';
+import { useUser } from '@/firebase';
 import { useEffect } from 'react';
+import { AppProvider, useAppContext } from '@/context/AppContext';
+import { signOut } from 'firebase/auth';
+import { useAuth } from '@/firebase';
+
 
 const navItems = [
   { href: '/dashboard', label: 'Panel Özeti', icon: LayoutDashboard },
@@ -17,7 +21,13 @@ const navItems = [
 
 function PageHeader() {
   const pathname = usePathname();
-  const { logout } = useAppContext();
+  const auth = useAuth();
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    await signOut(auth);
+    router.push('/login');
+  }
 
   return (
     <header className="sticky top-0 z-10 flex h-16 items-center justify-between gap-4 border-b bg-background/80 px-4 backdrop-blur-sm sm:px-6 md:px-8">
@@ -56,7 +66,7 @@ function PageHeader() {
           </Button>
         ))}
       </nav>
-       <Button variant="outline" size="sm" onClick={logout}>
+       <Button variant="outline" size="sm" onClick={handleLogout}>
           <LogOut className="mr-2 h-4 w-4" />
           Çıkış Yap
         </Button>
@@ -74,7 +84,7 @@ export default function MainLayout({
   children: React.ReactNode;
 }) {
   const bgImage = PlaceHolderImages.find((p) => p.id === 'logo-background');
-  const { user, isUserLoading } = useAppContext();
+  const { user, isUserLoading } = useUser();
   const router = useRouter();
 
   useEffect(() => {
@@ -92,19 +102,21 @@ export default function MainLayout({
   }
 
   return (
-      <div className="relative min-h-screen">
-        {bgImage && (
-          <Image
-            src={bgImage.imageUrl}
-            alt={bgImage.description}
-            fill
-            className="object-cover opacity-5 -z-10"
-            data-ai-hint={bgImage.imageHint}
-            priority
-          />
-        )}
-        <PageHeader />
-        <MainContent>{children}</MainContent>
-      </div>
+      <AppProvider>
+        <div className="relative min-h-screen">
+          {bgImage && (
+            <Image
+              src={bgImage.imageUrl}
+              alt={bgImage.description}
+              fill
+              className="object-cover opacity-5 -z-10"
+              data-ai-hint={bgImage.imageHint}
+              priority
+            />
+          )}
+          <PageHeader />
+          <MainContent>{children}</MainContent>
+        </div>
+      </AppProvider>
   );
 }

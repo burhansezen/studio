@@ -1,222 +1,114 @@
 {
   "entities": {
-    "Sale": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Sale",
+    "Product": {
+      "title": "Product",
       "type": "object",
-      "description": "Represents a sale of auto accessories.",
+      "description": "Represents an auto accessory product.",
       "properties": {
-        "id": {
+        "name": {
           "type": "string",
-          "description": "Unique identifier for the Sale entity."
+          "description": "The name of the product."
         },
-        "productId": {
-          "type": "string",
-          "description": "Reference to Product. (Relationship: Product 1:N Sale)"
-        },
-        "quantity": {
+        "stock": {
           "type": "number",
-          "description": "The quantity of the product sold."
-        },
-        "salePrice": {
-          "type": "number",
-          "description": "The price at which the product was sold."
-        },
-        "saleDate": {
-          "type": "string",
-          "description": "The date and time when the sale occurred.",
-          "format": "date-time"
-        }
-      },
-      "required": [
-        "id",
-        "productId",
-        "quantity",
-        "salePrice",
-        "saleDate"
-      ]
-    },
-    "Purchase": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Purchase",
-      "type": "object",
-      "description": "Represents a purchase of auto accessories.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Purchase entity."
-        },
-        "productId": {
-          "type": "string",
-          "description": "Reference to Product. (Relationship: Product 1:N Purchase)"
-        },
-        "quantity": {
-          "type": "number",
-          "description": "The quantity of the product purchased."
+          "description": "The current quantity of the product in stock."
         },
         "purchasePrice": {
           "type": "number",
           "description": "The price at which the product was purchased."
         },
-        "purchaseDate": {
-          "type": "string",
-          "description": "The date and time when the purchase occurred.",
-          "format": "date-time"
-        },
-        "vehicleCompatibility": {
-          "type": "string",
-          "description": "Details about which vehicles this product is compatible with."
-        }
-      },
-      "required": [
-        "id",
-        "productId",
-        "quantity",
-        "purchasePrice",
-        "purchaseDate",
-        "vehicleCompatibility"
-      ]
-    },
-    "Product": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Product",
-      "type": "object",
-      "description": "Represents an auto accessory product.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Product entity."
-        },
-        "name": {
-          "type": "string",
-          "description": "The name of the product."
-        },
-        "description": {
-          "type": "string",
-          "description": "A detailed description of the product."
-        },
         "sellingPrice": {
           "type": "number",
           "description": "The price at which the product is sold."
         },
-        "stockQuantity": {
-          "type": "number",
-          "description": "The current quantity of the product in stock."
+        "compatibility": {
+          "type": "string",
+          "description": "Details about which vehicles this product is compatible with."
+        },
+        "imageUrl": {
+            "type": "string",
+            "description": "URL of the product image."
+        },
+        "lastPurchaseDate": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The date of the last purchase."
+        },
+        "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp of when the product was created."
         }
       },
       "required": [
-        "id",
         "name",
-        "description",
+        "stock",
+        "purchasePrice",
         "sellingPrice",
-        "stockQuantity"
+        "compatibility",
+        "lastPurchaseDate",
+        "createdAt"
       ]
     },
-    "Refund": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Refund",
+    "Transaction": {
+      "title": "Transaction",
       "type": "object",
-      "description": "Represents a refund for a sale.",
+      "description": "Represents a sale or return transaction.",
       "properties": {
-        "id": {
+        "type": {
           "type": "string",
-          "description": "Unique identifier for the Refund entity."
+          "enum": ["Satış", "İade"],
+          "description": "Type of the transaction."
         },
-        "saleId": {
+        "productId": {
           "type": "string",
-          "description": "Reference to Sale. (Relationship: Sale 1:N Refund)"
+          "description": "Reference to the Product."
         },
-        "refundAmount": {
+        "productName": {
+            "type": "string",
+            "description": "Name of the product in the transaction."
+        },
+        "dateTime": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The date and time of the transaction."
+        },
+        "quantity": {
           "type": "number",
-          "description": "The amount refunded."
+          "description": "Quantity of the product."
         },
-        "refundDate": {
-          "type": "string",
-          "description": "The date and time when the refund was issued.",
-          "format": "date-time"
+        "amount": {
+          "type": "number",
+          "description": "Total amount for the transaction. Negative for returns."
         }
       },
       "required": [
-        "id",
-        "saleId",
-        "refundAmount",
-        "refundDate"
+        "type",
+        "productId",
+        "productName",
+        "dateTime",
+        "quantity",
+        "amount"
       ]
     }
   },
   "auth": {
     "providers": [
-      "password",
-      "anonymous"
+      "password"
     ]
   },
   "firestore": {
-    "structure": [
-      {
-        "path": "/products/{productId}",
-        "definition": {
-          "entityName": "Product",
-          "schema": {
-            "$ref": "#/backend/entities/Product"
-          },
-          "description": "Stores auto accessory product details.",
-          "params": [
-            {
-              "name": "productId",
-              "description": "Unique identifier for the Product entity."
-            }
-          ]
-        }
+    "/products/{productId}": {
+      "schema": {
+        "$ref": "#/entities/Product"
       },
-      {
-        "path": "/sales/{saleId}",
-        "definition": {
-          "entityName": "Sale",
-          "schema": {
-            "$ref": "#/backend/entities/Sale"
-          },
-          "description": "Stores sale transaction details, including a reference to the product sold.",
-          "params": [
-            {
-              "name": "saleId",
-              "description": "Unique identifier for the Sale entity."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/purchases/{purchaseId}",
-        "definition": {
-          "entityName": "Purchase",
-          "schema": {
-            "$ref": "#/backend/entities/Purchase"
-          },
-          "description": "Stores purchase details, including the product purchased and vehicle compatibility.",
-          "params": [
-            {
-              "name": "purchaseId",
-              "description": "Unique identifier for the Purchase entity."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/refunds/{refundId}",
-        "definition": {
-          "entityName": "Refund",
-          "schema": {
-            "$ref": "#/backend/entities/Refund"
-          },
-          "description": "Stores refund details, including a reference to the original sale.",
-          "params": [
-            {
-              "name": "refundId",
-              "description": "Unique identifier for the Refund entity."
-            }
-          ]
-        }
-      }
-    ],
-    "reasoning": "The Firestore structure is designed to manage sales, purchases, products, and refunds for SZN Auto Manager, an auto accessory store. Given the requirement for real-time synchronization across devices and the need for clear data visibility on the main dashboard, the structure emphasizes simplicity, security, and scalability. To ensure Authorization Independence, no `get()` calls are needed within the security rules. Path-based ownership is used for data isolation and clear ownership definition.\n\nAll data is stored in top-level collections to facilitate simple queries and avoid deeply nested structures. The key collections are `products`, `sales`, `purchases`, and `refunds`. The `products` collection stores the details of each auto accessory. `sales` records each sale transaction, linking back to the `products` collection via the `productId`. Similarly, `purchases` stores details of each purchase made, also linking to `products` using `productId`. The `refunds` collection records refund transactions and links back to `sales` via `saleId`.\n\nThis structure supports the required QAPs by ensuring that listing operations are secure. Segregation of data into distinct collections (`products`, `sales`, `purchases`, `refunds`) ensures that security rules can be applied uniformly to each collection. There is no need for Rules are not Filters because each collection contains only one type of data with similar access control needs. This design is straightforward, facilitates efficient queries, and supports the core features of the SZN Auto Manager application, including the dashboard summary, sales management, purchase management, and inventory synchronization."
+      "description": "Stores details for each auto accessory product."
+    },
+    "/transactions/{transactionId}": {
+        "schema": {
+            "$ref": "#/entities/Transaction"
+        },
+        "description": "Stores all sale and return transactions."
+    }
   }
 }

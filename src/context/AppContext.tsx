@@ -1,12 +1,14 @@
 'use client';
 
-import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect } from 'react';
+import React, { createContext, useContext, ReactNode, useMemo } from 'react';
 import type { Product, Transaction, SummaryCardData } from '@/lib/types';
 import { DollarSign, ShoppingBag, ArrowLeftRight, TrendingUp } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ProductFormValues } from '@/app/(main)/inventory/add-product-form';
 import { useRouter } from 'next/navigation';
-import { products as initialProducts, transactions as initialTransactions } from '@/lib/data';
+import { useUser, useCollection, useFirestore, useAuth, useMemoFirebase } from '@/firebase';
+import { collection, doc, addDoc, updateDoc, deleteDoc, writeBatch } from 'firebase/firestore';
+import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 
 type GroupedTransactions = {
   [date: string]: Transaction[];
@@ -17,12 +19,8 @@ type ProductCount = {
   count: number;
 };
 
-type User = {
-    email: string;
-}
-
 type AppContextType = {
-  user: User | null;
+  user: any | null;
   isUserLoading: boolean;
   products: Product[];
   transactions: Transaction[];
@@ -49,81 +47,27 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export const AppProvider = ({ children }: { children: ReactNode }) => {
   const { toast } = useToast();
   const router = useRouter();
-
-  const [user, setUser] = useState<User | null>(null);
-  const [isUserLoading, setIsUserLoading] = useState(true);
-
-  const [products, setProducts] = useState<Product[]>([]);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [loading, setLoading] = useState({ products: true, transactions: true });
+  const { user, isUserLoading } = useUser();
+  const firestore = useFirestore();
+  const auth = useAuth();
   
-  useEffect(() => {
-    try {
-      const storedProducts = localStorage.getItem('products');
-      const storedTransactions = localStorage.getItem('transactions');
-      
-      if (storedProducts) {
-        // Parse dates correctly from string
-        const parsedProducts = JSON.parse(storedProducts).map((p: Product) => ({
-          ...p,
-          lastPurchaseDate: new Date(p.lastPurchaseDate)
-        }));
-        setProducts(parsedProducts);
-      } else {
-        setProducts(initialProducts);
-      }
-      
-      if (storedTransactions) {
-        const parsedTransactions = JSON.parse(storedTransactions).map((t: Transaction) => ({
-          ...t,
-          dateTime: new Date(t.dateTime)
-        }));
-        setTransactions(parsedTransactions);
-      } else {
-        setTransactions(initialTransactions);
-      }
-    } catch (error) {
-      console.error("Failed to load data from localStorage", error);
-      setProducts(initialProducts);
-      setTransactions(initialTransactions);
-    }
+  const productsRef = useMemoFirebase(() => collection(firestore, 'products'), [firestore]);
+  const transactionsRef = useMemoFirebase(() => collection(firestore, 'transactions'), [firestore]);
 
-    setLoading({ products: false, transactions: false });
+  const { data: productsData, isLoading: productsLoading } = useCollection<Product>(productsRef);
+  const { data: transactionsData, isLoading: transactionsLoading } = useCollection<Transaction>(transactionsRef);
 
-    // Simulate checking auth status
-    try {
-      const storedUser = localStorage.getItem('user');
-      if (storedUser) {
-          setUser(JSON.parse(storedUser));
-      }
-    } catch (error) {
-      console.error("Failed to parse user from localStorage", error);
-      localStorage.removeItem('user');
-    }
-    setIsUserLoading(false);
+  const products = useMemo(() => productsData || [], [productsData]);
+  const transactions = useMemo(() => (transactionsData || []).map(t => ({...t, dateTime: new Date(t.dateTime)})).sort((a,b) => b.dateTime.getTime() - a.dateTime.getTime()), [transactionsData]);
 
-  }, []);
-
-  useEffect(() => {
-    if(!loading.products){
-      localStorage.setItem('products', JSON.stringify(products));
-    }
-  }, [products, loading.products]);
-
-  useEffect(() => {
-    if(!loading.transactions) {
-      localStorage.setItem('transactions', JSON.stringify(transactions));
-    }
-  }, [transactions, loading.transactions]);
-  
   const totalStock = useMemo(() => {
     return products.reduce((sum, product) => sum + product.stock, 0);
   }, [products]);
-  
+
   const summaryData = useMemo(() => {
     const totalRevenue = transactions.filter(t => t.type === 'Satış').reduce((sum, t) => sum + t.amount, 0);
-    const totalReturns = transactions.filter(t => t.type === 'İade').reduce((sum, t) => sum + t.amount, 0);
-    const netIncome = totalRevenue + totalReturns;
+    const totalReturns = transactions.filter(t => t.type === 'İade').reduce((sum, t) => sum + Math.abs(t.amount), 0);
+    const netIncome = totalRevenue - totalReturns;
 
     const totalProfit = transactions
       .filter(t => t.type === 'Satış')
@@ -135,12 +79,27 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         }
         return sum;
       }, 0);
+      
+    const netProfit = transactions
+      .reduce((sum, t) => {
+        const product = products.find(p => p.id === t.productId);
+        if (product && t.type === 'Satış') {
+          const profitPerItem = product.sellingPrice - product.purchasePrice;
+          return sum + (profitPerItem * t.quantity);
+        }
+        if(product && t.type === 'İade') {
+          const profitPerItem = product.sellingPrice - product.purchasePrice;
+          return sum - (profitPerItem * t.quantity);
+        }
+        return sum;
+      }, 0);
+
 
     return [
       { title: 'Net Gelir', value: `₺${netIncome.toLocaleString('tr-TR')}`, change: '', icon: DollarSign },
-      { title: 'Toplam Kâr', value: `₺${totalProfit.toLocaleString('tr-TR')}`, change: '', icon: TrendingUp },
-      { title: 'Satışlar', value: `+₺${totalRevenue.toLocaleString('tr-TR')}`, change: '', icon: ShoppingBag },
-      { title: 'İadeler', value: `₺${totalReturns.toLocaleString('tr-TR')}`, change: '', icon: ArrowLeftRight },
+      { title: 'Net Kâr', value: `₺${netProfit.toLocaleString('tr-TR')}`, change: '', icon: TrendingUp },
+      { title: 'Toplam Satış', value: `+₺${totalRevenue.toLocaleString('tr-TR')}`, change: '', icon: ShoppingBag },
+      { title: 'Toplam İade', value: `₺${totalReturns.toLocaleString('tr-TR')}`, change: '', icon: ArrowLeftRight },
     ];
   }, [transactions, products]);
 
@@ -199,13 +158,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       
       const { image, ...rest } = productData;
 
-      const newProduct: Product = {
+      const newProductData = {
         ...rest,
-        id: `prod_${Date.now()}`,
         imageUrl,
+        lastPurchaseDate: productData.lastPurchaseDate.toISOString(),
       };
-
-      setProducts(prev => [newProduct, ...prev]);
+      await addDoc(collection(firestore, 'products'), newProductData);
 
       toast({
         title: "Ürün Eklendi",
@@ -229,20 +187,17 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       }
       
       const { image, ...rest } = productData;
+      const productRef = doc(firestore, 'products', productId);
+      const updatedData: any = {
+          ...rest,
+          lastPurchaseDate: productData.lastPurchaseDate.toISOString(),
+      };
 
-      setProducts(prev => prev.map(p => {
-        if (p.id === productId) {
-            const updatedProduct: Product = {
-                ...p,
-                ...rest
-            };
-            if(imageUrl) {
-                updatedProduct.imageUrl = imageUrl;
-            }
-            return updatedProduct;
-        }
-        return p;
-      }));
+      if (imageUrl) {
+          updatedData.imageUrl = imageUrl;
+      }
+
+      await updateDoc(productRef, updatedData);
 
       toast({
         title: "Ürün Güncellendi",
@@ -259,17 +214,38 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const deleteProduct = async (productId: string) => {
-    const productToDelete = products.find(p => p.id === productId);
-    if (!productToDelete) return;
-    
-    setProducts(prev => prev.filter(p => p.id !== productId));
-    setTransactions(prev => prev.filter(t => t.productId !== productId));
+    try {
+        const productToDelete = products.find(p => p.id === productId);
+        if (!productToDelete) return;
 
-    toast({
-        title: "Ürün Silindi",
-        description: `${productToDelete.name} ve ilgili tüm işlemler silindi.`,
-        variant: 'destructive'
-    });
+        const batch = writeBatch(firestore);
+
+        // Delete the product
+        const productRef = doc(firestore, 'products', productId);
+        batch.delete(productRef);
+
+        // Find and delete related transactions
+        const relatedTransactions = transactions.filter(t => t.productId === productId);
+        relatedTransactions.forEach(t => {
+            const transRef = doc(firestore, 'transactions', t.id);
+            batch.delete(transRef);
+        });
+        
+        await batch.commit();
+
+        toast({
+            title: "Ürün Silindi",
+            description: `${productToDelete.name} ve ilgili tüm işlemler silindi.`,
+            variant: 'destructive'
+        });
+    } catch(error) {
+        console.error("Error deleting product and transactions: ", error);
+        toast({
+            title: "Hata",
+            description: "Ürün silinirken bir hata oluştu.",
+            variant: "destructive"
+        });
+    }
   };
 
   const makeSale = async (product: Product) => {
@@ -277,66 +253,78 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         toast({ title: 'Stokta yok', description: 'Bu ürün stokta kalmadı.', variant: 'destructive'});
         return;
     }
-
-    // Decrease stock
-    setProducts(prev => prev.map(p => p.id === product.id ? {...p, stock: p.stock - 1} : p));
-
-    // Add transaction
-    const newTransaction: Transaction = {
-        id: `trans_${Date.now()}`,
+    
+    const productRef = doc(firestore, 'products', product.id);
+    const newTransactionData = {
         type: 'Satış',
         productId: product.id,
         productName: product.name,
-        dateTime: new Date(),
+        dateTime: new Date().toISOString(),
         quantity: 1,
         amount: product.sellingPrice,
     };
-    setTransactions(prev => [newTransaction, ...prev].sort((a,b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime()));
-    
-    toast({
-        title: "Satış Başarılı",
-        description: `${product.name} ürününden 1 adet satıldı.`,
-    });
+
+    try {
+      await updateDoc(productRef, { stock: product.stock - 1 });
+      await addDoc(collection(firestore, 'transactions'), newTransactionData);
+      
+      toast({
+          title: "Satış Başarılı",
+          description: `${product.name} ürününden 1 adet satıldı.`,
+      });
+    } catch(error){
+       console.error("Error making sale: ", error);
+       toast({ title: 'Satış Hatası', description: 'İşlem sırasında bir hata oluştu.', variant: 'destructive'});
+       // Revert stock change if transaction fails, though a batch write is better
+       await updateDoc(productRef, { stock: product.stock });
+    }
   };
 
    const makeReturn = async (product: Product) => {
-    // Increase stock
-    setProducts(prev => prev.map(p => p.id === product.id ? {...p, stock: p.stock + 1} : p));
-
-    // Add return transaction
-    const newTransaction: Transaction = {
-      id: `trans_${Date.now()}`,
+    const productRef = doc(firestore, 'products', product.id);
+    const newTransactionData = {
       type: 'İade',
       productId: product.id,
       productName: product.name,
-      dateTime: new Date(),
+      dateTime: new Date().toISOString(),
       quantity: 1,
       amount: -product.sellingPrice,
     };
-    setTransactions(prev => [newTransaction, ...prev].sort((a,b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime()));
 
-    toast({
-      title: "İade Başarılı",
-      description: `${product.name} ürününden 1 adet iade alındı.`,
-      variant: 'destructive',
-    });
+    try {
+        await updateDoc(productRef, { stock: product.stock + 1 });
+        await addDoc(collection(firestore, 'transactions'), newTransactionData);
+
+        toast({
+          title: "İade Başarılı",
+          description: `${product.name} ürününden 1 adet iade alındı.`,
+          variant: 'destructive',
+        });
+    } catch(error) {
+       console.error("Error making return: ", error);
+       toast({ title: 'İade Hatası', description: 'İşlem sırasında bir hata oluştu.', variant: 'destructive'});
+       await updateDoc(productRef, { stock: product.stock });
+    }
   };
 
   const login = async (email: string, password: string) => {
-    if (email === 'SZN@szn.com' && password === '331742') {
-        const userData = { email };
-        setUser(userData);
-        localStorage.setItem('user', JSON.stringify(userData));
+    try {
+        await signInWithEmailAndPassword(auth, email, password);
         router.push('/dashboard');
-    } else {
+    } catch (error) {
+        console.error("Login error", error)
         toast({ title: 'Giriş Başarısız', description: 'E-posta veya şifre yanlış.', variant: 'destructive' });
     }
   };
 
   const logout = async () => {
-    setUser(null);
-    localStorage.removeItem('user');
-    router.push('/login');
+    try {
+        await signOut(auth);
+        router.push('/login');
+    } catch(error) {
+        console.error("Logout error", error);
+        toast({ title: 'Çıkış Hatası', description: 'Oturum kapatılırken bir sorun oluştu.', variant: 'destructive' });
+    }
   };
 
   const value: AppContextType = {
@@ -344,7 +332,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     isUserLoading,
     products,
     transactions,
-    loading,
+    loading: {
+      products: productsLoading,
+      transactions: transactionsLoading
+    },
     summaryData,
     totalStock,
     groupedTransactions,

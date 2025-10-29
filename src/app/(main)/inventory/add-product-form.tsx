@@ -21,6 +21,7 @@ import { cn } from '@/lib/utils';
 import { CalendarIcon } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
+import { Timestamp } from 'firebase/firestore';
 
 const MAX_FILE_SIZE = 5000000; // 5MB
 const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
@@ -64,35 +65,41 @@ type ProductFormProps = {
   product?: Product | null;
 };
 
-const defaultFormValues = {
-  name: '',
-  stock: 0,
-  purchasePrice: 0,
-  sellingPrice: 0,
-  compatibility: '',
-  image: undefined,
-  lastPurchaseDate: new Date(),
-};
-
 export function ProductForm({ onSubmit, product }: ProductFormProps) {
   const currentSchema = product ? editFormSchema : formSchema;
+  
+  const toDate = (timestamp: Date | Timestamp) => {
+    if (timestamp instanceof Timestamp) {
+      return timestamp.toDate();
+    }
+    return new Date(timestamp);
+  }
+
+  const defaultFormValues = {
+    name: product?.name || '',
+    stock: product?.stock || 0,
+    purchasePrice: product?.purchasePrice || 0,
+    sellingPrice: product?.sellingPrice || 0,
+    compatibility: product?.compatibility || '',
+    image: undefined,
+    lastPurchaseDate: product?.lastPurchaseDate ? toDate(product.lastPurchaseDate) : new Date(),
+  };
+
   const form = useForm<z.infer<typeof currentSchema>>({
     resolver: zodResolver(currentSchema),
-    defaultValues: product ? {
-        ...product,
-        image: undefined,
-    } : defaultFormValues,
+    defaultValues: defaultFormValues,
   });
 
   useEffect(() => {
-    if (product) {
       form.reset({
-        ...product,
+        name: product?.name || '',
+        stock: product?.stock || 0,
+        purchasePrice: product?.purchasePrice || 0,
+        sellingPrice: product?.sellingPrice || 0,
+        compatibility: product?.compatibility || '',
         image: undefined,
+        lastPurchaseDate: product?.lastPurchaseDate ? toDate(product.lastPurchaseDate) : new Date(),
       });
-    } else {
-       form.reset(defaultFormValues);
-    }
   }, [product, form]);
 
   const fileRef = form.register("image");

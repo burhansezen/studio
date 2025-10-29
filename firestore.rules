@@ -1,113 +1,116 @@
 /**
- * @description This ruleset defines the security rules for the SZN Auto Manager application,
- *              managing products, sales, purchases, and refunds. The rules enforce public
- *              read access with owner-only writes. Each collection is secured independently,
- *              avoiding complex relational checks within the rules. All writes require
- *              authentication and validation of an ownership field within the document.
- * @dataStructure The database consists of four top-level collections: `products`, `sales`,
- *                `purchases`, and `refunds`. Each document in these collections represents
- *                a product, sale, purchase, or refund, respectively.
- * @keySecurityDecisions Public read access is granted to all collections to allow for
- *                       unrestricted data visibility. Write access is restricted to
- *                       authenticated users who own the respective documents. The rules
- *                       do not implement any schema validation beyond ensuring the existence
- *                       and correct value of the ownership field on write.
- * @denormalizationForAuthorization  Each document is expected to have an ownership field
- *                                  (e.g., `authorId`, `ownerId`, `creatorId`) that matches
- *                                  the authenticated user's UID. This avoids the need for
- *                                  `get()` calls to other documents to determine ownership.
- * @structuralSegregation N/A, all data is stored in top-level collections.
+ * @fileoverview Firestore Security Rules for SZN Auto Manager.
+ *
+ * Core Philosophy:
+ * This ruleset provides basic protection against unauthorized data access.
+ * It assumes that all write operations should be authenticated.
+ * Read operations are generally public in this prototyping phase to enable faster UI development.
+ * More granular access control and data validation will be implemented in later iterations.
+ *
+ * Data Structure:
+ * The database consists of four top-level collections: `products`, `sales`, `purchases`, and `refunds`.
+ * Each collection contains documents representing the corresponding entities.
+ * Relationships between entities are established using document IDs as foreign keys (e.g., `sale.productId` references `product.id`).
+ *
+ * Key Security Decisions:
+ * - Read access (get, list) is generally public for ease of development.
+ * - Write access (create, update, delete) requires authentication.
+ * - No complex role-based access control is implemented in this initial version.
+ *
+ * Denormalization for Authorization:
+ * - No explicit denormalization is performed in this version.
+ *   Future iterations will likely require denormalization to avoid `get()` calls in rules.
+ *
+ * Structural Segregation:
+ * - No structural segregation is used in this version. All data resides in top-level collections.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Allows public read access to product details and restricts write access to owners.
+     * @description Allows read access to all products. Only authenticated users can create, update, or delete products.
      * @path /products/{productId}
-     * @allow (get, list) if true;
-     * @allow (create) if request.auth != null && request.resource.data.id == request.auth.uid;
-     * @allow (update, delete) if request.auth != null && isExistingOwner(resource.data.id);
-     * @deny (create) if request.auth == null;
-     * @deny (update, delete) if request.auth == null;
-     * @deny (create) if request.resource.data.id != request.auth.uid;
-     * @deny (update, delete) if resource == null;
-     * @principle Enforces public read access with owner-only writes based on the `id` field.
+     * @allow (get, list)
+     * @allow (create) User is authenticated.
+     * @allow (update) User is authenticated.
+     * @allow (delete) User is authenticated.
+     * @deny (create) User is not authenticated.
+     * @deny (update) User is not authenticated.
+     * @deny (delete) User is not authenticated.
+     * @principle Requires authentication for all write operations.
      */
     match /products/{productId} {
-      allow get, list: if true;
-      allow create: if isSignedIn() && request.resource.data.id == request.auth.uid;
-      allow update: if isSignedIn() && isExistingOwner(resource.data.id);
-      allow delete: if isSignedIn() && isExistingOwner(resource.data.id);
+      allow get: if true;
+      allow list: if true;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
     }
 
     /**
-     * @description Allows public read access to sale transaction details and restricts write access to owners.
+     * @description Allows read access to all sales. Only authenticated users can create, update, or delete sales.
      * @path /sales/{saleId}
-     * @allow (get, list) if true;
-     * @allow (create) if request.auth != null && request.resource.data.id == request.auth.uid;
-     * @allow (update, delete) if request.auth != null && isExistingOwner(resource.data.id);
-     * @deny (create) if request.auth == null;
-     * @deny (update, delete) if request.auth == null;
-     * @deny (create) if request.resource.data.id != request.auth.uid;
-     * @deny (update, delete) if resource == null;
-     * @principle Enforces public read access with owner-only writes based on the `id` field.
+     * @allow (get, list)
+     * @allow (create) User is authenticated.
+     * @allow (update) User is authenticated.
+     * @allow (delete) User is authenticated.
+     * @deny (create) User is not authenticated.
+     * @deny (update) User is not authenticated.
+     * @deny (delete) User is not authenticated.
+     * @principle Requires authentication for all write operations.
      */
     match /sales/{saleId} {
-      allow get, list: if true;
-      allow create: if isSignedIn() && request.resource.data.id == request.auth.uid;
-      allow update: if isSignedIn() && isExistingOwner(resource.data.id);
-      allow delete: if isSignedIn() && isExistingOwner(resource.data.id);
+      allow get: if true;
+      allow list: if true;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
     }
 
     /**
-     * @description Allows public read access to purchase details and restricts write access to owners.
+     * @description Allows read access to all purchases. Only authenticated users can create, update, or delete purchases.
      * @path /purchases/{purchaseId}
-     * @allow (get, list) if true;
-     * @allow (create) if request.auth != null && request.resource.data.id == request.auth.uid;
-     * @allow (update, delete) if request.auth != null && isExistingOwner(resource.data.id);
-     * @deny (create) if request.auth == null;
-     * @deny (update, delete) if request.auth == null;
-     * @deny (create) if request.resource.data.id != request.auth.uid;
-     * @deny (update, delete) if resource == null;
-     * @principle Enforces public read access with owner-only writes based on the `id` field.
+     * @allow (get, list)
+     * @allow (create) User is authenticated.
+     * @allow (update) User is authenticated.
+     * @allow (delete) User is authenticated.
+     * @deny (create) User is not authenticated.
+     * @deny (update) User is not authenticated.
+     * @deny (delete) User is not authenticated.
+     * @principle Requires authentication for all write operations.
      */
     match /purchases/{purchaseId} {
-      allow get, list: if true;
-      allow create: if isSignedIn() && request.resource.data.id == request.auth.uid;
-      allow update: if isSignedIn() && isExistingOwner(resource.data.id);
-      allow delete: if isSignedIn() && isExistingOwner(resource.data.id);
+      allow get: if true;
+      allow list: if true;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
     }
 
     /**
-     * @description Allows public read access to refund details and restricts write access to owners.
+     * @description Allows read access to all refunds. Only authenticated users can create, update, or delete refunds.
      * @path /refunds/{refundId}
-     * @allow (get, list) if true;
-     * @allow (create) if request.auth != null && request.resource.data.id == request.auth.uid;
-     * @allow (update, delete) if request.auth != null && isExistingOwner(resource.data.id);
-     * @deny (create) if request.auth == null;
-     * @deny (update, delete) if request.auth == null;
-     * @deny (create) if request.resource.data.id != request.auth.uid;
-     * @deny (update, delete) if resource == null;
-     * @principle Enforces public read access with owner-only writes based on the `id` field.
+     * @allow (get, list)
+     * @allow (create) User is authenticated.
+     * @allow (update) User is authenticated.
+     * @allow (delete) User is authenticated.
+     * @deny (create) User is not authenticated.
+     * @deny (update) User is not authenticated.
+     * @deny (delete) User is not authenticated.
+     * @principle Requires authentication for all write operations.
      */
     match /refunds/{refundId} {
-      allow get, list: if true;
-      allow create: if isSignedIn() && request.resource.data.id == request.auth.uid;
-      allow update: if isSignedIn() && isExistingOwner(resource.data.id);
-      allow delete: if isSignedIn() && isExistingOwner(resource.data.id);
+      allow get: if true;
+      allow list: if true;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
     }
 
+    // Helper function to determine if a user is signed in.
     function isSignedIn() {
       return request.auth != null;
-    }
-
-    function isOwner(resourceId) {
-        return request.auth.uid == resourceId;
-    }
-
-    function isExistingOwner(resourceId) {
-      return resource != null && isOwner(resourceId);
     }
   }
 }
