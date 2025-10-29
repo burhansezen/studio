@@ -3,37 +3,16 @@
 import React, {
   createContext,
   useContext,
+  useState,
+  useEffect,
   useMemo,
   ReactNode,
 } from 'react';
-import {
-  collection,
-  doc,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  writeBatch,
-  Timestamp,
-} from 'firebase/firestore';
-import {
-  getStorage,
-  ref,
-  uploadString,
-  getDownloadURL,
-} from 'firebase/storage';
-import {
-  useFirestore,
-  useUser,
-  useAuth,
-  useMemoFirebase,
-} from '@/firebase/provider';
-import {
-  User,
-  AuthError,
-} from 'firebase/auth';
-import { useCollection, WithId } from '@/firebase/firestore/use-collection';
-
 import type { Product, Transaction, SummaryCardData } from '@/lib/types';
+import {
+  products as initialProducts,
+  transactions as initialTransactions,
+} from '@/lib/data';
 import {
   DollarSign,
   ShoppingBag,
@@ -44,20 +23,18 @@ import { useToast } from '@/hooks/use-toast';
 import type { ProductFormValues } from '@/app/(main)/inventory/add-product-form';
 
 type GroupedTransactions = {
-  [date: string]: WithId<Transaction>[];
+  [date: string]: Transaction[];
 };
 type ProductCount = { productName: string; count: number };
 type BackupData = { products: Product[]; transactions: Transaction[] };
 
 type AppContextType = {
-  products: WithId<Product>[] | null;
-  transactions: WithId<Transaction>[] | null;
+  products: Product[];
+  transactions: Transaction[];
   loading: {
     products: boolean;
     transactions: boolean;
   };
-  user: User | null;
-  isUserLoading: boolean;
   summaryData: SummaryCardData[];
   totalStock: number;
   groupedTransactions: GroupedTransactions;
@@ -69,8 +46,8 @@ type AppContextType = {
     productData: ProductFormValues
   ) => Promise<void>;
   deleteProduct: (productId: string) => Promise<void>;
-  makeSale: (product: WithId<Product>) => Promise<void>;
-  makeReturn: (product: WithId<Product>) => Promise<void>;
+  makeSale: (product: Product) => Promise<void>;
+  makeReturn: (product: Product) => Promise<void>;
   loadBackup: (data: BackupData) => Promise<void>;
 };
 
@@ -78,67 +55,28 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {
   const { toast } = useToast();
-  const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
+  const [products, setProducts] = useState<Product[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState({ products: true, transactions: true });
 
-  const productsRef = useMemoFirebase(
-    () =>
-      firestore && user && !isUserLoading
-        ? collection(firestore, 'products')
-        : null,
-    [firestore, user, isUserLoading]
-  );
-  const transactionsRef = useMemoFirebase(
-    () =>
-      firestore && user && !isUserLoading
-        ? collection(firestore, 'transactions')
-        : null,
-    [firestore, user, isUserLoading]
-  );
+  useEffect(() => {
+    // Simulate loading from an API
+    setTimeout(() => {
+      setProducts(initialProducts);
+      setTransactions(initialTransactions);
+      setLoading({ products: false, transactions: false });
+    }, 500);
+  }, []);
 
-  const {
-    data: products,
-    isLoading: productsLoading,
-    error: productsError,
-  } = useCollection<Product>(productsRef);
-  const {
-    data: transactions,
-    isLoading: transactionsLoading,
-    error: transactionsError,
-  } = useCollection<Transaction>(transactionsRef);
-
-  const loading = {
-    products: productsLoading,
-    transactions: transactionsLoading,
-  };
-
-  const toDate = (date: any): Date => {
-    if (date instanceof Timestamp) {
-      return date.toDate();
-    }
+  const toDate = (date: string | Date): Date => {
     return new Date(date);
   };
 
   const totalStock = useMemo(() => {
-    if (!products) return 0;
     return products.reduce((sum, product) => sum + product.stock, 0);
   }, [products]);
 
   const summaryData = useMemo(() => {
-    if (!transactions || !products) {
-      return [
-        { title: 'Net Gelir', value: '₺0', change: '', icon: DollarSign },
-        { title: 'Net Kâr', value: '₺0', change: '', icon: TrendingUp },
-        { title: 'Toplam Satış', value: '+₺0', change: '', icon: ShoppingBag },
-        {
-          title: 'Toplam İade',
-          value: '₺0',
-          change: '',
-          icon: ArrowLeftRight,
-        },
-      ];
-    }
-
     const totalRevenue = transactions
       .filter((t) => t.type === 'Satış')
       .reduce((sum, t) => sum + t.amount, 0);
@@ -190,7 +128,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   }, [transactions, products]);
 
   const groupedTransactions = useMemo(() => {
-    if (!transactions) return {};
     const sortedTransactions = [...transactions].sort(
       (a, b) => toDate(b.dateTime).getTime() - toDate(a.dateTime).getTime()
     );
@@ -205,7 +142,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   }, [transactions]);
 
   const topSellingProducts = useMemo(() => {
-    if (!transactions) return [];
     const sales = transactions.filter((t) => t.type === 'Satış');
     const productCounts = sales.reduce((acc, sale) => {
       acc[sale.productName] = (acc[sale.productName] || 0) + sale.quantity;
@@ -219,7 +155,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   }, [transactions]);
 
   const topReturningProducts = useMemo(() => {
-    if (!transactions) return [];
     const returns = transactions.filter((t) => t.type === 'İade');
     const productCounts = returns.reduce((acc, ret) => {
       acc[ret.productName] = (acc[ret.productName] || 0) + ret.quantity;
@@ -232,42 +167,17 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       .slice(0, 5);
   }, [transactions]);
 
-
-  const getBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = (error) => reject(error);
-    });
-  };
-
-  const uploadImage = async (file: File): Promise<string> => {
-    const storage = getStorage();
-    const storageRef = ref(
-      storage,
-      `products/${new Date().getTime()}_${file.name}`
-    );
-    const base64 = await getBase64(file);
-    await uploadString(storageRef, base64, 'data_url');
-    return getDownloadURL(storageRef);
-  };
-
   const addProduct = async (productData: ProductFormValues) => {
-    if (!firestore || !productsRef) return;
     try {
-      let imageUrl = 'https://placehold.co/400x300';
-      if (productData.image && productData.image.length > 0) {
-        imageUrl = await uploadImage(productData.image[0]);
-      }
-
-      await addDoc(productsRef, {
+      // In a real app, this would be an API call. Here we simulate it.
+      const newProduct: Product = {
+        id: new Date().getTime().toString(), // simple unique id
         ...productData,
-        image: undefined, // remove from data to be written
-        imageUrl,
+        imageUrl: 'https://placehold.co/400x300', // placeholder
         createdAt: new Date(),
         lastPurchaseDate: productData.lastPurchaseDate,
-      });
+      };
+      setProducts((prev) => [newProduct, ...prev]);
 
       toast({
         title: 'Ürün Eklendi',
@@ -287,25 +197,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     productId: string,
     productData: ProductFormValues
   ) => {
-    if (!firestore) return;
     try {
-      const productRef = doc(firestore, 'products', productId);
-      let imageUrl: string | undefined = undefined;
-      if (productData.image && productData.image.length > 0) {
-        imageUrl = await uploadImage(productData.image[0]);
-      }
-
-      const updatedData: Partial<Product> & { image?: any } = {
-        ...productData,
-        image: undefined, // remove from data to be written
-        lastPurchaseDate: productData.lastPurchaseDate,
-      };
-
-      if (imageUrl) {
-        updatedData.imageUrl = imageUrl;
-      }
-
-      await updateDoc(productRef, updatedData);
+      setProducts((prev) =>
+        prev.map((p) =>
+          p.id === productId ? { ...p, ...productData, lastPurchaseDate: productData.lastPurchaseDate } : p
+        )
+      );
 
       toast({
         title: 'Ürün Güncellendi',
@@ -322,12 +219,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const deleteProduct = async (productId: string) => {
-    if (!firestore) return;
     try {
-      const productRef = doc(firestore, 'products', productId);
-      await deleteDoc(productRef);
-      // Note: Related transactions are not deleted automatically to preserve history.
-      // This could be a feature to add later if needed.
+      setProducts((prev) => prev.filter((p) => p.id !== productId));
       toast({
         title: 'Ürün Silindi',
         description: 'Ürün envanterden kaldırıldı.',
@@ -343,8 +236,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const makeSale = async (product: WithId<Product>) => {
-    if (!firestore || !transactionsRef) return;
+  const makeSale = async (product: Product) => {
     if (product.stock === 0) {
       toast({
         title: 'Stokta yok',
@@ -355,12 +247,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
 
     try {
-      const productRef = doc(firestore, 'products', product.id);
+      setProducts((prev) =>
+        prev.map((p) =>
+          p.id === product.id ? { ...p, stock: p.stock - 1 } : p
+        )
+      );
 
-      const batch = writeBatch(firestore);
-      batch.update(productRef, { stock: product.stock - 1 });
-
-      const newTransaction: Omit<Transaction, 'id'> = {
+      const newTransaction: Transaction = {
+        id: new Date().getTime().toString(),
         type: 'Satış',
         productId: product.id,
         productName: product.name,
@@ -369,10 +263,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         amount: product.sellingPrice,
       };
 
-      const transRef = doc(transactionsRef);
-      batch.set(transRef, newTransaction);
-
-      await batch.commit();
+      setTransactions((prev) => [newTransaction, ...prev]);
 
       toast({
         title: 'Satış Başarılı',
@@ -388,15 +279,16 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const makeReturn = async (product: WithId<Product>) => {
-    if (!firestore || !transactionsRef) return;
+  const makeReturn = async (product: Product) => {
     try {
-      const productRef = doc(firestore, 'products', product.id);
+      setProducts((prev) =>
+        prev.map((p) =>
+          p.id === product.id ? { ...p, stock: p.stock + 1 } : p
+        )
+      );
 
-      const batch = writeBatch(firestore);
-      batch.update(productRef, { stock: product.stock + 1 });
-
-      const newTransaction: Omit<Transaction, 'id'> = {
+      const newTransaction: Transaction = {
+        id: new Date().getTime().toString(),
         type: 'İade',
         productId: product.id,
         productName: product.name,
@@ -404,10 +296,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         quantity: 1,
         amount: -product.sellingPrice,
       };
-      const transRef = doc(transactionsRef);
-      batch.set(transRef, newTransaction);
-
-      await batch.commit();
+      setTransactions((prev) => [newTransaction, ...prev]);
 
       toast({
         title: 'İade Başarılı',
@@ -425,64 +314,20 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const loadBackup = async (data: BackupData) => {
-    if (!firestore) {
-      toast({
-        title: 'Hata',
-        description: 'Veritabanı bağlantısı kurulamadı.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    try {
-      const batch = writeBatch(firestore);
-
-      if (data.products && productsRef) {
-        data.products.forEach((product) => {
-          const docRef = doc(productsRef);
-          // Ensure dates are converted to Timestamps
-          const productData = {
-            ...product,
-            createdAt: new Date(product.createdAt),
-            lastPurchaseDate: new Date(product.lastPurchaseDate),
-          };
-          batch.set(docRef, productData);
-        });
-      }
-
-      if (data.transactions && transactionsRef) {
-        data.transactions.forEach((transaction) => {
-          const docRef = doc(transactionsRef);
-          const transactionData = {
-            ...transaction,
-            dateTime: new Date(transaction.dateTime),
-          };
-          batch.set(docRef, transactionData);
-        });
-      }
-
-      await batch.commit();
-
-      toast({
+    setLoading({ products: true, transactions: true });
+    setProducts(data.products || []);
+    setTransactions(data.transactions || []);
+    setLoading({ products: false, transactions: false });
+    toast({
         title: 'Yedek Yüklendi',
-        description: 'Verileriniz veritabanına başarıyla yüklendi.',
-      });
-    } catch (error) {
-      console.error('Yedek yükleme hatası:', error);
-      toast({
-        title: 'Hata',
-        description: 'Yedek dosyası veritabanına yüklenirken bir hata oluştu.',
-        variant: 'destructive',
-      });
-    }
+        description: 'Verileriniz başarıyla yüklendi.',
+    });
   };
 
   const value: AppContextType = {
     products,
     transactions,
     loading,
-    user,
-    isUserLoading,
     summaryData,
     totalStock,
     groupedTransactions,
