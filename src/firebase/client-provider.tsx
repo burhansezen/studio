@@ -21,6 +21,8 @@ export function initializeFirebase(): FirebaseServices {
     return { firebaseApp, auth, firestore };
   }
 
+  // Hardcode the config to ensure it's always available.
+  // Firebase Studio will replace these with actual values during deployment.
   const firebaseConfig = {
     apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
     authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -63,7 +65,7 @@ export function FirebaseClientProvider({
 
   if (!firebaseServices) {
     return (
-        <div className="flex items-center justify-center h-screen">
+        <div className="flex items-center justify-center h-screen bg-background text-foreground">
              Yükleniyor...
         </div>
     );
