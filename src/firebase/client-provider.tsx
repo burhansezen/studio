@@ -52,16 +52,12 @@ export function FirebaseClientProvider({
     useState<FirebaseServices | null>(null);
 
   useEffect(() => {
-    // This ensures initializeFirebase is only called on the client-side
-    // after the component has mounted.
     if (typeof window !== 'undefined') {
       setFirebaseServices(initializeFirebase());
     }
   }, []);
 
   if (!firebaseServices) {
-    // You can render a loading spinner or null here
-    // while Firebase is being initialized.
     return <div>Yükleniyor...</div>;
   }
 
