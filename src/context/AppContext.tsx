@@ -58,12 +58,37 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState({ products: true, transactions: true });
   
   useEffect(() => {
-    // Simulate loading data
-    setTimeout(() => {
-        setProducts(initialProducts.sort((a,b) => new Date(b.lastPurchaseDate).getTime() - new Date(a.lastPurchaseDate).getTime()));
-        setTransactions(initialTransactions.sort((a,b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime()));
-        setLoading({ products: false, transactions: false });
-    }, 500);
+    try {
+      const storedProducts = localStorage.getItem('products');
+      const storedTransactions = localStorage.getItem('transactions');
+      
+      if (storedProducts) {
+        // Parse dates correctly from string
+        const parsedProducts = JSON.parse(storedProducts).map((p: Product) => ({
+          ...p,
+          lastPurchaseDate: new Date(p.lastPurchaseDate)
+        }));
+        setProducts(parsedProducts);
+      } else {
+        setProducts(initialProducts);
+      }
+      
+      if (storedTransactions) {
+        const parsedTransactions = JSON.parse(storedTransactions).map((t: Transaction) => ({
+          ...t,
+          dateTime: new Date(t.dateTime)
+        }));
+        setTransactions(parsedTransactions);
+      } else {
+        setTransactions(initialTransactions);
+      }
+    } catch (error) {
+      console.error("Failed to load data from localStorage", error);
+      setProducts(initialProducts);
+      setTransactions(initialTransactions);
+    }
+
+    setLoading({ products: false, transactions: false });
 
     // Simulate checking auth status
     try {
@@ -78,6 +103,18 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setIsUserLoading(false);
 
   }, []);
+
+  useEffect(() => {
+    if(!loading.products){
+      localStorage.setItem('products', JSON.stringify(products));
+    }
+  }, [products, loading.products]);
+
+  useEffect(() => {
+    if(!loading.transactions) {
+      localStorage.setItem('transactions', JSON.stringify(transactions));
+    }
+  }, [transactions, loading.transactions]);
   
   const totalStock = useMemo(() => {
     return products.reduce((sum, product) => sum + product.stock, 0);
