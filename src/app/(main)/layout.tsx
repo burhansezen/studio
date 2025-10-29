@@ -1,11 +1,11 @@
 'use client';
 
-import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Car, LayoutDashboard, ShoppingCart, Archive, LogOut } from 'lucide-react';
+import { Car, LayoutDashboard, ShoppingCart, Archive } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { usePathname } from 'next/navigation';
 
 const navItems = [
   { href: '/dashboard', label: 'Panel Özeti', icon: LayoutDashboard },

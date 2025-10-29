@@ -25,7 +25,6 @@ import type { Transaction } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { useAppContext } from '@/context/AppContext';
 import { Search, TrendingDown, TrendingUp, Loader2 } from 'lucide-react';
-import { Timestamp } from 'firebase/firestore';
 
 export default function DashboardPage() {
   const { summaryData, groupedTransactions, transactions, topSellingProducts, topReturningProducts, loading } = useAppContext();
@@ -38,13 +37,6 @@ export default function DashboardPage() {
     );
   }
   
-  const toDate = (timestamp: Date | Timestamp) => {
-    if (timestamp instanceof Timestamp) {
-      return timestamp.toDate();
-    }
-    return new Date(timestamp);
-  }
-
   return (
     <div className="flex flex-col gap-8">
       <section className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
@@ -133,8 +125,8 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             {transactions.length > 0 ? (
-              <Accordion type="multiple" defaultValue={Object.keys(groupedTransactions).sort((a,b) => new Date(b).getTime() - new Date(a).getTime()).slice(0, 1)} className="w-full">
-                {Object.entries(groupedTransactions).sort(([dateA], [dateB]) => new Date(dateB).getTime() - new Date(dateA).getTime()).map(([date, transactionsOnDate]) => (
+              <Accordion type="multiple" defaultValue={Object.keys(groupedTransactions).slice(0, 1)} className="w-full">
+                {Object.entries(groupedTransactions).map(([date, transactionsOnDate]) => (
                   <AccordionItem value={date} key={date}>
                     <AccordionTrigger className="font-medium">
                       {new Date(date).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric', weekday: 'long' })} 
@@ -155,7 +147,7 @@ export default function DashboardPage() {
                             {transactionsOnDate.map((transaction: Transaction) => (
                             <TableRow key={transaction.id} className="hover:bg-muted/50">
                                 <TableCell className="font-mono text-muted-foreground">
-                                 {toDate(transaction.dateTime).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
+                                 {new Date(transaction.dateTime).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
                                 </TableCell>
                                 <TableCell className="font-medium">
                                 {transaction.productName}

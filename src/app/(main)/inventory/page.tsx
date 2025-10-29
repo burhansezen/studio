@@ -43,7 +43,6 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useAppContext } from '@/context/AppContext';
-import { Timestamp } from 'firebase/firestore';
 
 export default function InventoryPage() {
   const { products, addProduct, updateProduct, deleteProduct, totalStock, makeReturn, loading } = useAppContext();
@@ -68,13 +67,8 @@ export default function InventoryPage() {
     setEditingProduct(product);
     setDialogOpen(true);
   }
-
-  const toDate = (timestamp: string | Date | Timestamp) => {
-    if (timestamp instanceof Timestamp) {
-      return timestamp.toDate();
-    }
-    return new Date(timestamp);
-  }
+  
+  const toDate = (date: string | Date) => new Date(date);
 
   const handleExport = () => {
     if(!products) return;

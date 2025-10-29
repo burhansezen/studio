@@ -21,7 +21,6 @@ import { cn } from '@/lib/utils';
 import { CalendarIcon } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
-import { Timestamp } from 'firebase/firestore';
 
 const MAX_FILE_SIZE = 5000000; // 5MB
 const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
@@ -68,12 +67,7 @@ type ProductFormProps = {
 export function ProductForm({ onSubmit, product }: ProductFormProps) {
   const currentSchema = product ? editFormSchema : formSchema;
   
-  const toDate = (timestamp: Date | Timestamp) => {
-    if (timestamp instanceof Timestamp) {
-      return timestamp.toDate();
-    }
-    return new Date(timestamp);
-  }
+  const toDate = (date: string | Date) => new Date(date);
 
   const defaultFormValues = {
     name: product?.name || '',

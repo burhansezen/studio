@@ -1,123 +1,95 @@
 'use client';
-import { getAuth, type User } from 'firebase/auth';
 
-type SecurityRuleContext = {
-  path: string;
-  operation: 'get' | 'list' | 'create' | 'update' | 'delete' | 'write';
-  requestResourceData?: any;
-};
+import Image from 'next/image';
+import { useState, useMemo } from 'react';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { ShoppingCart, Search, Loader2 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { useAppContext } from '@/context/AppContext';
 
-interface FirebaseAuthToken {
-  name: string | null;
-  email: string | null;
-  email_verified: boolean;
-  phone_number: string | null;
-  sub: string;
-  firebase: {
-    identities: Record<string, string[]>;
-    sign_in_provider: string;
-    tenant: string | null;
-  };
-}
+export default function SalesPage() {
+  const { products, makeSale, loading = { products: true, transactions: true } } = useAppContext();
+  const [searchTerm, setSearchTerm] = useState('');
 
-interface FirebaseAuthObject {
-  uid: string;
-  token: FirebaseAuthToken;
-}
-
-interface SecurityRuleRequest {
-  auth: FirebaseAuthObject | null;
-  method: string;
-  path: string;
-  resource?: {
-    data: any;
-  };
-}
-
-/**
- * Builds a security-rule-compliant auth object from the Firebase User.
- * @param currentUser The currently authenticated Firebase user.
- * @returns An object that mirrors request.auth in security rules, or null.
- */
-function buildAuthObject(currentUser: User | null): FirebaseAuthObject | null {
-  if (!currentUser) {
-    return null;
-  }
-
-  const token: FirebaseAuthToken = {
-    name: currentUser.displayName,
-    email: currentUser.email,
-    email_verified: currentUser.emailVerified,
-    phone_number: currentUser.phoneNumber,
-    sub: currentUser.uid,
-    firebase: {
-      identities: currentUser.providerData.reduce((acc, p) => {
-        if (p.providerId) {
-          acc[p.providerId] = [p.uid];
-        }
-        return acc;
-      }, {} as Record<string, string[]>),
-      sign_in_provider: currentUser.providerData[0]?.providerId || 'custom',
-      tenant: currentUser.tenantId,
-    },
-  };
-
-  return {
-    uid: currentUser.uid,
-    token: token,
-  };
-}
-
-/**
- * Builds the complete, simulated request object for the error message.
- * It safely tries to get the current authenticated user.
- * @param context The context of the failed Firestore operation.
- * @returns A structured request object.
- */
-function buildRequestObject(context: SecurityRuleContext): SecurityRuleRequest {
-  let authObject: FirebaseAuthObject | null = null;
-  try {
-    // Safely attempt to get the current user.
-    const firebaseAuth = getAuth();
-    const currentUser = firebaseAuth.currentUser;
-    if (currentUser) {
-      authObject = buildAuthObject(currentUser);
+  const filteredProducts = useMemo(() => {
+    if (!products) return [];
+    if (!searchTerm) {
+      return products;
     }
-  } catch {
-    // This will catch errors if the Firebase app is not yet initialized.
-    // In this case, we'll proceed without auth information.
-  }
+    return products.filter((product) =>
+      product.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [products, searchTerm]);
 
-  return {
-    auth: authObject,
-    method: context.operation,
-    path: `/databases/(default)/documents/${context.path}`,
-    resource: context.requestResourceData ? { data: context.requestResourceData } : undefined,
-  };
-}
-
-/**
- * Builds the final, formatted error message for the LLM.
- * @param requestObject The simulated request object.
- * @returns A string containing the error message and the JSON payload.
- */
-function buildErrorMessage(requestObject: SecurityRuleRequest): string {
-  return `Missing or insufficient permissions: The following request was denied by Firestore Security Rules:
-${JSON.stringify(requestObject, null, 2)}`;
-}
-
-/**
- * A custom error class designed to be consumed by an LLM for debugging.
- * It structures the error information to mimic the request object
- * available in Firestore Security Rules.
- */
-export class FirestorePermissionError extends Error {
-  public readonly request: SecurityRuleRequest;
-
-  constructor(context: SecurityRuleContext) {
-    const requestObject = buildRequestObject(context);
-    super(buildErrorMessage(requestObject));
-    this.name = 'FirebaseError';
-    this.request = requestObject;
-  }
+  return (
+    <div className="flex flex-col gap-6">
+       <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+          <Input
+            type="text"
+            placeholder="Ürün ara..."
+            className="w-full max-w-sm pl-10"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+      
+      {loading.products ? (
+        <div className="flex justify-center items-center h-64">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      ) : filteredProducts.length > 0 ? (
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {filteredProducts.map((product) => (
+            <Card key={product.id} className="flex flex-col overflow-hidden transition-all hover:shadow-lg hover:shadow-primary/10 hover:border-primary/50">
+              <CardHeader className="p-0">
+                <div className="relative aspect-video">
+                  <Image
+                    src={product.imageUrl || 'https://placehold.co/400x300'}
+                    alt={product.name}
+                    fill
+                    className="object-cover"
+                    data-ai-hint="car part"
+                  />
+                </div>
+              </CardHeader>
+              <CardContent className="p-4 flex-grow">
+                <CardTitle className="font-headline text-lg mb-2">{product.name}</CardTitle>
+                <CardDescription>{product.compatibility}</CardDescription>
+              </CardContent>
+              <CardFooter className="p-4 pt-0 flex flex-col items-start gap-4">
+                 <div className="flex justify-between w-full items-center">
+                   <div className="font-bold text-xl text-primary font-headline">
+                      {product.sellingPrice.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}
+                    </div>
+                   <Badge variant={product.stock < 10 ? 'destructive' : 'outline'}>
+                     {product.stock} adet stokta
+                   </Badge>
+                </div>
+                <Button className="w-full" disabled={product.stock === 0} onClick={() => makeSale(product)}>
+                  <ShoppingCart className="mr-2 h-4 w-4" />
+                  Satış Yap
+                </Button>
+              </CardFooter>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <Card className="col-span-full flex flex-col items-center justify-center p-12">
+            <Search className="w-16 h-16 text-muted-foreground mb-4" />
+            <CardTitle className="font-headline mb-2">Ürün Bulunamadı</CardTitle>
+            <CardDescription>{searchTerm ? 'Aradığınız kriterlere uygun ürün bulunamadı.' : 'Henüz envanterde ürün yok.'}</CardDescription>
+        </Card>
+      )}
+    </div>
+  );
 }
