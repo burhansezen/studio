@@ -63,19 +63,23 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     try {
-      localStorage.setItem('products', JSON.stringify(products));
+       if(!loading.products){
+         localStorage.setItem('products', JSON.stringify(products));
+       }
     } catch (error) {
       console.error("Failed to save products to localStorage", error);
     }
-  }, [products]);
+  }, [products, loading.products]);
 
   useEffect(() => {
     try {
-      localStorage.setItem('transactions', JSON.stringify(transactions));
+        if(!loading.transactions){
+            localStorage.setItem('transactions', JSON.stringify(transactions));
+        }
     } catch (error) {
       console.error("Failed to save transactions to localStorage", error);
     }
-  }, [transactions]);
+  }, [transactions, loading.transactions]);
 
 
   const totalStock = useMemo(() => {
@@ -84,8 +88,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const summaryData = useMemo(() => {
     const totalRevenue = transactions.filter(t => t.type === 'Satış').reduce((sum, t) => sum + t.amount, 0);
-    const totalReturns = transactions.filter(t => t.type === 'İade').reduce((sum, t) => sum + Math.abs(t.amount), 0);
-    const netIncome = totalRevenue - totalReturns;
+    const totalReturnsAmount = transactions.filter(t => t.type === 'İade').reduce((sum, t) => sum + Math.abs(t.amount), 0);
+    const netIncome = totalRevenue - totalReturnsAmount;
     
     const netProfit = transactions.reduce((sum, t) => {
         const product = products.find(p => p.id === t.productId);
@@ -106,7 +110,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       { title: 'Net Gelir', value: `₺${netIncome.toLocaleString('tr-TR')}`, change: '', icon: DollarSign },
       { title: 'Net Kâr', value: `₺${netProfit.toLocaleString('tr-TR')}`, change: '', icon: TrendingUp },
       { title: 'Toplam Satış', value: `+₺${totalRevenue.toLocaleString('tr-TR')}`, change: '', icon: ShoppingBag },
-      { title: 'Toplam İade', value: `₺${totalReturns.toLocaleString('tr-TR')}`, change: '', icon: ArrowLeftRight },
+      { title: 'Toplam İade', value: `₺${totalReturnsAmount.toLocaleString('tr-TR')}`, change: '', icon: ArrowLeftRight },
     ];
   }, [transactions, products]);
 
@@ -205,6 +209,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                 const updatedProduct = {
                     ...p,
                     ...productData,
+                    lastPurchaseDate: productData.lastPurchaseDate,
                     image: undefined, // remove image from data
                 };
                 if (imageUrl) {
