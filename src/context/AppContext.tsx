@@ -1,6 +1,11 @@
 'use client';
 
-import React, { createContext, useContext, useMemo, ReactNode } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useMemo,
+  ReactNode,
+} from 'react';
 import {
   collection,
   doc,
@@ -24,13 +29,20 @@ import {
 } from '@/firebase/provider';
 import {
   signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
   signOut,
   User,
+  AuthError,
 } from 'firebase/auth';
 import { useCollection, WithId } from '@/firebase/firestore/use-collection';
 
 import type { Product, Transaction, SummaryCardData } from '@/lib/types';
-import { DollarSign, ShoppingBag, ArrowLeftRight, TrendingUp } from 'lucide-react';
+import {
+  DollarSign,
+  ShoppingBag,
+  ArrowLeftRight,
+  TrendingUp,
+} from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { ProductFormValues } from '@/app/(main)/inventory/add-product-form';
 
@@ -120,37 +132,66 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const summaryData = useMemo(() => {
     if (!transactions || !products) {
-       return [
+      return [
         { title: 'Net Gelir', value: '₺0', change: '', icon: DollarSign },
         { title: 'Net Kâr', value: '₺0', change: '', icon: TrendingUp },
         { title: 'Toplam Satış', value: '+₺0', change: '', icon: ShoppingBag },
-        { title: 'Toplam İade', value: '₺0', change: '', icon: ArrowLeftRight },
+        {
+          title: 'Toplam İade',
+          value: '₺0',
+          change: '',
+          icon: ArrowLeftRight,
+        },
       ];
     }
 
-    const totalRevenue = transactions.filter(t => t.type === 'Satış').reduce((sum, t) => sum + t.amount, 0);
-    const totalReturnsAmount = transactions.filter(t => t.type === 'İade').reduce((sum, t) => sum + Math.abs(t.amount), 0);
+    const totalRevenue = transactions
+      .filter((t) => t.type === 'Satış')
+      .reduce((sum, t) => sum + t.amount, 0);
+    const totalReturnsAmount = transactions
+      .filter((t) => t.type === 'İade')
+      .reduce((sum, t) => sum + Math.abs(t.amount), 0);
     const netIncome = totalRevenue - totalReturnsAmount;
-    
-    const netProfit = transactions.reduce((sum, t) => {
-        const product = products.find(p => p.id === t.productId);
-        if (!product) return sum;
 
-        const profitPerItem = product.sellingPrice - product.purchasePrice;
-        if (t.type === 'Satış') {
-          return sum + (profitPerItem * t.quantity);
-        }
-        if(t.type === 'İade') {
-          return sum - (profitPerItem * t.quantity);
-        }
-        return sum;
-      }, 0);
+    const netProfit = transactions.reduce((sum, t) => {
+      const product = products.find((p) => p.id === t.productId);
+      if (!product) return sum;
+
+      const profitPerItem = product.sellingPrice - product.purchasePrice;
+      if (t.type === 'Satış') {
+        return sum + profitPerItem * t.quantity;
+      }
+      if (t.type === 'İade') {
+        return sum - profitPerItem * t.quantity;
+      }
+      return sum;
+    }, 0);
 
     return [
-      { title: 'Net Gelir', value: `₺${netIncome.toLocaleString('tr-TR')}`, change: '', icon: DollarSign },
-      { title: 'Net Kâr', value: `₺${netProfit.toLocaleString('tr-TR')}`, change: '', icon: TrendingUp },
-      { title: 'Toplam Satış', value: `+₺${totalRevenue.toLocaleString('tr-TR')}`, change: '', icon: ShoppingBag },
-      { title: 'Toplam İade', value: `₺${totalReturnsAmount.toLocaleString('tr-TR')}`, change: '', icon: ArrowLeftRight },
+      {
+        title: 'Net Gelir',
+        value: `₺${netIncome.toLocaleString('tr-TR')}`,
+        change: '',
+        icon: DollarSign,
+      },
+      {
+        title: 'Net Kâr',
+        value: `₺${netProfit.toLocaleString('tr-TR')}`,
+        change: '',
+        icon: TrendingUp,
+      },
+      {
+        title: 'Toplam Satış',
+        value: `+₺${totalRevenue.toLocaleString('tr-TR')}`,
+        change: '',
+        icon: ShoppingBag,
+      },
+      {
+        title: 'Toplam İade',
+        value: `₺${totalReturnsAmount.toLocaleString('tr-TR')}`,
+        change: '',
+        icon: ArrowLeftRight,
+      },
     ];
   }, [transactions, products]);
 
@@ -196,24 +237,53 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       .sort((a, b) => b.count - a.count)
       .slice(0, 5);
   }, [transactions]);
-  
+
   const login = async (email: string, pass: string): Promise<boolean> => {
-    try {
-      await signInWithEmailAndPassword(auth, email, pass);
-      toast({ title: 'Giriş Başarılı', description: 'Panele hoş geldiniz.' });
-      return true;
-    } catch (error) {
-      console.error('Login error:', error);
+    if (!auth) {
       toast({
-        title: 'Giriş Başarısız',
-        description: 'E-posta veya şifre hatalı.',
+        title: 'Hata',
+        description: 'Kimlik doğrulama hizmeti hazır değil.',
         variant: 'destructive',
       });
       return false;
     }
+    try {
+      await signInWithEmailAndPassword(auth, email, pass);
+      toast({ title: 'Giriş Başarılı', description: 'Panele hoş geldiniz.' });
+      return true;
+    } catch (error: any) {
+      if (error.code === 'auth/user-not-found') {
+        // User does not exist, so create a new user
+        try {
+          await createUserWithEmailAndPassword(auth, email, pass);
+          toast({
+            title: 'Kullanıcı Oluşturuldu ve Giriş Yapıldı',
+            description: 'Panele hoş geldiniz.',
+          });
+          return true;
+        } catch (createError) {
+          console.error('Sign up error:', createError);
+          toast({
+            title: 'Kayıt Başarısız',
+            description: 'Yeni kullanıcı oluşturulurken bir hata oluştu.',
+            variant: 'destructive',
+          });
+          return false;
+        }
+      } else {
+        console.error('Login error:', error);
+        toast({
+          title: 'Giriş Başarısız',
+          description: 'E-posta veya şifre hatalı.',
+          variant: 'destructive',
+        });
+        return false;
+      }
+    }
   };
 
   const logout = async () => {
+    if (!auth) return;
     try {
       await signOut(auth);
       toast({ title: 'Çıkış Yapıldı', description: 'Güvenle çıkış yaptınız.' });
@@ -238,7 +308,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const uploadImage = async (file: File): Promise<string> => {
     const storage = getStorage();
-    const storageRef = ref(storage, `products/${new Date().getTime()}_${file.name}`);
+    const storageRef = ref(
+      storage,
+      `products/${new Date().getTime()}_${file.name}`
+    );
     const base64 = await getBase64(file);
     await uploadString(storageRef, base64, 'data_url');
     return getDownloadURL(storageRef);
@@ -256,7 +329,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         ...productData,
         image: undefined, // remove from data to be written
         imageUrl,
-        createdAt: productData.lastPurchaseDate, // Corrected date handling
+        createdAt: new Date(),
         lastPurchaseDate: productData.lastPurchaseDate,
       });
 
@@ -286,7 +359,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         imageUrl = await uploadImage(productData.image[0]);
       }
 
-      const updatedData: Partial<Product> & {image?: any} = {
+      const updatedData: Partial<Product> & { image?: any } = {
         ...productData,
         image: undefined, // remove from data to be written
         lastPurchaseDate: productData.lastPurchaseDate,
@@ -295,7 +368,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       if (imageUrl) {
         updatedData.imageUrl = imageUrl;
       }
-      
+
       await updateDoc(productRef, updatedData);
 
       toast({
@@ -347,11 +420,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     try {
       const productRef = doc(firestore, 'products', product.id);
-      
+
       const batch = writeBatch(firestore);
       batch.update(productRef, { stock: product.stock - 1 });
-      
-      const newTransaction: Transaction = {
+
+      const newTransaction: Omit<Transaction, 'id'> = {
         type: 'Satış',
         productId: product.id,
         productName: product.name,
@@ -359,10 +432,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         quantity: 1,
         amount: product.sellingPrice,
       };
-      
+
       const transRef = doc(transactionsRef);
       batch.set(transRef, newTransaction);
-      
+
       await batch.commit();
 
       toast({
@@ -370,8 +443,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         description: `${product.name} ürününden 1 adet satıldı.`,
       });
     } catch (error) {
-       console.error('Error making sale: ', error);
-       toast({
+      console.error('Error making sale: ', error);
+      toast({
         title: 'Hata',
         description: 'Satış işlemi sırasında bir hata oluştu.',
         variant: 'destructive',
@@ -387,7 +460,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       const batch = writeBatch(firestore);
       batch.update(productRef, { stock: product.stock + 1 });
 
-      const newTransaction: Transaction = {
+      const newTransaction: Omit<Transaction, 'id'> = {
         type: 'İade',
         productId: product.id,
         productName: product.name,
@@ -397,7 +470,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       };
       const transRef = doc(transactionsRef);
       batch.set(transRef, newTransaction);
-      
+
       await batch.commit();
 
       toast({
@@ -406,8 +479,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         variant: 'destructive',
       });
     } catch (error) {
-       console.error('Error making return: ', error);
-       toast({
+      console.error('Error making return: ', error);
+      toast({
         title: 'Hata',
         description: 'İade işlemi sırasında bir hata oluştu.',
         variant: 'destructive',
@@ -417,55 +490,54 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const loadBackup = async (data: BackupData) => {
     if (!firestore) {
-        toast({
-            title: "Hata",
-            description: "Veritabanı bağlantısı kurulamadı.",
-            variant: "destructive",
-        });
-        return;
+      toast({
+        title: 'Hata',
+        description: 'Veritabanı bağlantısı kurulamadı.',
+        variant: 'destructive',
+      });
+      return;
     }
-    
+
     try {
-        const batch = writeBatch(firestore);
+      const batch = writeBatch(firestore);
 
-        if(data.products && productsRef){
-            data.products.forEach(product => {
-                const docRef = doc(productsRef);
-                // Ensure dates are converted to Timestamps
-                const productData = {
-                  ...product,
-                  createdAt: new Date(product.createdAt),
-                  lastPurchaseDate: new Date(product.lastPurchaseDate),
-                };
-                batch.set(docRef, productData);
-            });
-        }
-
-        if(data.transactions && transactionsRef){
-            data.transactions.forEach(transaction => {
-                const docRef = doc(transactionsRef);
-                const transactionData = {
-                  ...transaction,
-                  dateTime: new Date(transaction.dateTime),
-                }
-                batch.set(docRef, transactionData);
-            });
-        }
-        
-        await batch.commit();
-
-        toast({
-            title: "Yedek Yüklendi",
-            description: "Verileriniz veritabanına başarıyla yüklendi.",
+      if (data.products && productsRef) {
+        data.products.forEach((product) => {
+          const docRef = doc(productsRef);
+          // Ensure dates are converted to Timestamps
+          const productData = {
+            ...product,
+            createdAt: new Date(product.createdAt),
+            lastPurchaseDate: new Date(product.lastPurchaseDate),
+          };
+          batch.set(docRef, productData);
         });
+      }
 
+      if (data.transactions && transactionsRef) {
+        data.transactions.forEach((transaction) => {
+          const docRef = doc(transactionsRef);
+          const transactionData = {
+            ...transaction,
+            dateTime: new Date(transaction.dateTime),
+          };
+          batch.set(docRef, transactionData);
+        });
+      }
+
+      await batch.commit();
+
+      toast({
+        title: 'Yedek Yüklendi',
+        description: 'Verileriniz veritabanına başarıyla yüklendi.',
+      });
     } catch (error) {
-        console.error("Yedek yükleme hatası:", error);
-        toast({
-          title: "Hata",
-          description: "Yedek dosyası veritabanına yüklenirken bir hata oluştu.",
-          variant: "destructive",
-        });
+      console.error('Yedek yükleme hatası:', error);
+      toast({
+        title: 'Hata',
+        description: 'Yedek dosyası veritabanına yüklenirken bir hata oluştu.',
+        variant: 'destructive',
+      });
     }
   };
 
