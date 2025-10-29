@@ -1,42 +1,113 @@
 /**
- * @description This ruleset enforces a public read, owner-write model for products and allows anyone to create, update, or delete transactions.
- * @dataStructure Products and transactions are stored in flat, top-level collections.
- * @keySecurityDecisions Public read access to products is allowed. Transactions have open access.
- * @denormalizationForAuthorization N/A
- * @structuralSegregation N/A
+ * @description This ruleset defines the security rules for the SZN Auto Manager application,
+ *              managing products, sales, purchases, and refunds. The rules enforce public
+ *              read access with owner-only writes. Each collection is secured independently,
+ *              avoiding complex relational checks within the rules. All writes require
+ *              authentication and validation of an ownership field within the document.
+ * @dataStructure The database consists of four top-level collections: `products`, `sales`,
+ *                `purchases`, and `refunds`. Each document in these collections represents
+ *                a product, sale, purchase, or refund, respectively.
+ * @keySecurityDecisions Public read access is granted to all collections to allow for
+ *                       unrestricted data visibility. Write access is restricted to
+ *                       authenticated users who own the respective documents. The rules
+ *                       do not implement any schema validation beyond ensuring the existence
+ *                       and correct value of the ownership field on write.
+ * @denormalizationForAuthorization  Each document is expected to have an ownership field
+ *                                  (e.g., `authorId`, `ownerId`, `creatorId`) that matches
+ *                                  the authenticated user's UID. This avoids the need for
+ *                                  `get()` calls to other documents to determine ownership.
+ * @structuralSegregation N/A, all data is stored in top-level collections.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Allows anyone to read product information, but only allows authenticated users to create, update, or delete products.
+     * @description Allows public read access to product details and restricts write access to owners.
      * @path /products/{productId}
-     * @allow (get, list) - Any user can read product data.
-     * @deny (create, update, delete) - No restrictions.
-     * @principle Allows public read access to product information.
+     * @allow (get, list) if true;
+     * @allow (create) if request.auth != null && request.resource.data.id == request.auth.uid;
+     * @allow (update, delete) if request.auth != null && isExistingOwner(resource.data.id);
+     * @deny (create) if request.auth == null;
+     * @deny (update, delete) if request.auth == null;
+     * @deny (create) if request.resource.data.id != request.auth.uid;
+     * @deny (update, delete) if resource == null;
+     * @principle Enforces public read access with owner-only writes based on the `id` field.
      */
     match /products/{productId} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if true;
-      allow update: if true;
-      allow delete: if true;
+      allow get, list: if true;
+      allow create: if isSignedIn() && request.resource.data.id == request.auth.uid;
+      allow update: if isSignedIn() && isExistingOwner(resource.data.id);
+      allow delete: if isSignedIn() && isExistingOwner(resource.data.id);
     }
 
     /**
-     * @description Allows anyone to create, read, update, or delete transactions.
-     * @path /transactions/{transactionId}
-     * @allow (create, get, list, update, delete) - Any user can perform any operation on transactions.
-     * @deny None.
-     * @principle Open access to transactions.
+     * @description Allows public read access to sale transaction details and restricts write access to owners.
+     * @path /sales/{saleId}
+     * @allow (get, list) if true;
+     * @allow (create) if request.auth != null && request.resource.data.id == request.auth.uid;
+     * @allow (update, delete) if request.auth != null && isExistingOwner(resource.data.id);
+     * @deny (create) if request.auth == null;
+     * @deny (update, delete) if request.auth == null;
+     * @deny (create) if request.resource.data.id != request.auth.uid;
+     * @deny (update, delete) if resource == null;
+     * @principle Enforces public read access with owner-only writes based on the `id` field.
      */
-    match /transactions/{transactionId} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if true;
-      allow update: if true;
-      allow delete: if true;
+    match /sales/{saleId} {
+      allow get, list: if true;
+      allow create: if isSignedIn() && request.resource.data.id == request.auth.uid;
+      allow update: if isSignedIn() && isExistingOwner(resource.data.id);
+      allow delete: if isSignedIn() && isExistingOwner(resource.data.id);
+    }
+
+    /**
+     * @description Allows public read access to purchase details and restricts write access to owners.
+     * @path /purchases/{purchaseId}
+     * @allow (get, list) if true;
+     * @allow (create) if request.auth != null && request.resource.data.id == request.auth.uid;
+     * @allow (update, delete) if request.auth != null && isExistingOwner(resource.data.id);
+     * @deny (create) if request.auth == null;
+     * @deny (update, delete) if request.auth == null;
+     * @deny (create) if request.resource.data.id != request.auth.uid;
+     * @deny (update, delete) if resource == null;
+     * @principle Enforces public read access with owner-only writes based on the `id` field.
+     */
+    match /purchases/{purchaseId} {
+      allow get, list: if true;
+      allow create: if isSignedIn() && request.resource.data.id == request.auth.uid;
+      allow update: if isSignedIn() && isExistingOwner(resource.data.id);
+      allow delete: if isSignedIn() && isExistingOwner(resource.data.id);
+    }
+
+    /**
+     * @description Allows public read access to refund details and restricts write access to owners.
+     * @path /refunds/{refundId}
+     * @allow (get, list) if true;
+     * @allow (create) if request.auth != null && request.resource.data.id == request.auth.uid;
+     * @allow (update, delete) if request.auth != null && isExistingOwner(resource.data.id);
+     * @deny (create) if request.auth == null;
+     * @deny (update, delete) if request.auth == null;
+     * @deny (create) if request.resource.data.id != request.auth.uid;
+     * @deny (update, delete) if resource == null;
+     * @principle Enforces public read access with owner-only writes based on the `id` field.
+     */
+    match /refunds/{refundId} {
+      allow get, list: if true;
+      allow create: if isSignedIn() && request.resource.data.id == request.auth.uid;
+      allow update: if isSignedIn() && isExistingOwner(resource.data.id);
+      allow delete: if isSignedIn() && isExistingOwner(resource.data.id);
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(resourceId) {
+        return request.auth.uid == resourceId;
+    }
+
+    function isExistingOwner(resourceId) {
+      return resource != null && isOwner(resourceId);
     }
   }
 }
