@@ -1,98 +1,133 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, ReactNode, useMemo } from 'react';
+import React, { createContext, useContext, useMemo, ReactNode } from 'react';
+import {
+  collection,
+  doc,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  writeBatch,
+  Timestamp,
+} from 'firebase/firestore';
+import {
+  getStorage,
+  ref,
+  uploadString,
+  getDownloadURL,
+} from 'firebase/storage';
+import {
+  useFirestore,
+  useUser,
+  useAuth,
+  useMemoFirebase,
+} from '@/firebase/provider';
+import {
+  signInWithEmailAndPassword,
+  signOut,
+  User,
+} from 'firebase/auth';
+import { useCollection, WithId } from '@/firebase/firestore/use-collection';
+
 import type { Product, Transaction, SummaryCardData } from '@/lib/types';
 import { DollarSign, ShoppingBag, ArrowLeftRight, TrendingUp } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { ProductFormValues } from '@/app/(main)/inventory/add-product-form';
-import { products as initialProducts, transactions as initialTransactions } from '@/lib/data';
+import type { ProductFormValues } from '@/app/(main)/inventory/add-product-form';
 
 type GroupedTransactions = {
-  [date: string]: Transaction[];
+  [date: string]: WithId<Transaction>[];
 };
-
-type ProductCount = {
-  productName: string;
-  count: number;
-};
-
-type BackupData = {
-  products: Product[];
-  transactions: Transaction[];
-}
+type ProductCount = { productName: string; count: number };
+type BackupData = { products: Product[]; transactions: Transaction[] };
 
 type AppContextType = {
-  products: Product[];
-  transactions: Transaction[];
+  products: WithId<Product>[] | null;
+  transactions: WithId<Transaction>[] | null;
   loading: {
     products: boolean;
     transactions: boolean;
   };
+  user: User | null;
+  isUserLoading: boolean;
   summaryData: SummaryCardData[];
   totalStock: number;
   groupedTransactions: GroupedTransactions;
   topSellingProducts: ProductCount[];
   topReturningProducts: ProductCount[];
+  login: (email: string, pass: string) => Promise<boolean>;
+  logout: () => Promise<void>;
   addProduct: (productData: ProductFormValues) => Promise<void>;
-  updateProduct: (productId: string, productData: ProductFormValues) => Promise<void>;
+  updateProduct: (
+    productId: string,
+    productData: ProductFormValues
+  ) => Promise<void>;
   deleteProduct: (productId: string) => Promise<void>;
-  makeSale: (product: Product) => Promise<void>;
-  makeReturn: (product: Product) => Promise<void>;
-  loadBackup: (data: BackupData) => void;
+  makeSale: (product: WithId<Product>) => Promise<void>;
+  makeReturn: (product: WithId<Product>) => Promise<void>;
+  loadBackup: (data: BackupData) => Promise<void>;
 };
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {
   const { toast } = useToast();
-  const [products, setProducts] = useState<Product[]>(initialProducts);
-  const [transactions, setTransactions] = useState<Transaction[]>(initialTransactions);
-  const [loading, setLoading] = useState({ products: true, transactions: true });
+  const firestore = useFirestore();
+  const auth = useAuth();
+  const { user, isUserLoading } = useUser();
 
-  useEffect(() => {
-    try {
-      const storedProducts = localStorage.getItem('products');
-      const storedTransactions = localStorage.getItem('transactions');
+  const productsRef = useMemoFirebase(
+    () =>
+      firestore && user && !isUserLoading
+        ? collection(firestore, 'products')
+        : null,
+    [firestore, user, isUserLoading]
+  );
+  const transactionsRef = useMemoFirebase(
+    () =>
+      firestore && user && !isUserLoading
+        ? collection(firestore, 'transactions')
+        : null,
+    [firestore, user, isUserLoading]
+  );
 
-      if (storedProducts) {
-        setProducts(JSON.parse(storedProducts));
-      }
-      if (storedTransactions) {
-        setTransactions(JSON.parse(storedTransactions).map((t: any) => ({...t, dateTime: new Date(t.dateTime)})));
-      }
-    } catch (error) {
-      console.error("Failed to load data from localStorage", error);
-    } finally {
-      setLoading({ products: false, transactions: false });
+  const {
+    data: products,
+    isLoading: productsLoading,
+    error: productsError,
+  } = useCollection<Product>(productsRef);
+  const {
+    data: transactions,
+    isLoading: transactionsLoading,
+    error: transactionsError,
+  } = useCollection<Transaction>(transactionsRef);
+
+  const loading = {
+    products: productsLoading,
+    transactions: transactionsLoading,
+  };
+
+  const toDate = (date: any): Date => {
+    if (date instanceof Timestamp) {
+      return date.toDate();
     }
-  }, []);
-
-  useEffect(() => {
-    try {
-       if(!loading.products){
-         localStorage.setItem('products', JSON.stringify(products));
-       }
-    } catch (error) {
-      console.error("Failed to save products to localStorage", error);
-    }
-  }, [products, loading.products]);
-
-  useEffect(() => {
-    try {
-        if(!loading.transactions){
-            localStorage.setItem('transactions', JSON.stringify(transactions));
-        }
-    } catch (error) {
-      console.error("Failed to save transactions to localStorage", error);
-    }
-  }, [transactions, loading.transactions]);
-
+    return new Date(date);
+  };
 
   const totalStock = useMemo(() => {
+    if (!products) return 0;
     return products.reduce((sum, product) => sum + product.stock, 0);
   }, [products]);
 
   const summaryData = useMemo(() => {
+    if (!transactions || !products) {
+       return [
+        { title: 'Net Gelir', value: '₺0', change: '', icon: DollarSign },
+        { title: 'Net Kâr', value: '₺0', change: '', icon: TrendingUp },
+        { title: 'Toplam Satış', value: '+₺0', change: '', icon: ShoppingBag },
+        { title: 'Toplam İade', value: '₺0', change: '', icon: ArrowLeftRight },
+      ];
+    }
+
     const totalRevenue = transactions.filter(t => t.type === 'Satış').reduce((sum, t) => sum + t.amount, 0);
     const totalReturnsAmount = transactions.filter(t => t.type === 'İade').reduce((sum, t) => sum + Math.abs(t.amount), 0);
     const netIncome = totalRevenue - totalReturnsAmount;
@@ -111,7 +146,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         return sum;
       }, 0);
 
-
     return [
       { title: 'Net Gelir', value: `₺${netIncome.toLocaleString('tr-TR')}`, change: '', icon: DollarSign },
       { title: 'Net Kâr', value: `₺${netProfit.toLocaleString('tr-TR')}`, change: '', icon: TrendingUp },
@@ -121,9 +155,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   }, [transactions, products]);
 
   const groupedTransactions = useMemo(() => {
-    const sortedTransactions = [...transactions].sort((a,b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime());
+    if (!transactions) return {};
+    const sortedTransactions = [...transactions].sort(
+      (a, b) => toDate(b.dateTime).getTime() - toDate(a.dateTime).getTime()
+    );
     return sortedTransactions.reduce((acc, transaction) => {
-      const date = new Date(transaction.dateTime).toISOString().split('T')[0];
+      const date = toDate(transaction.dateTime).toISOString().split('T')[0];
       if (!acc[date]) {
         acc[date] = [];
       }
@@ -133,7 +170,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   }, [transactions]);
 
   const topSellingProducts = useMemo(() => {
-    const sales = transactions.filter(t => t.type === 'Satış');
+    if (!transactions) return [];
+    const sales = transactions.filter((t) => t.type === 'Satış');
     const productCounts = sales.reduce((acc, sale) => {
       acc[sale.productName] = (acc[sale.productName] || 0) + sale.quantity;
       return acc;
@@ -146,7 +184,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   }, [transactions]);
 
   const topReturningProducts = useMemo(() => {
-    const returns = transactions.filter(t => t.type === 'İade');
+    if (!transactions) return [];
+    const returns = transactions.filter((t) => t.type === 'İade');
     const productCounts = returns.reduce((acc, ret) => {
       acc[ret.productName] = (acc[ret.productName] || 0) + ret.quantity;
       return acc;
@@ -157,164 +196,291 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       .sort((a, b) => b.count - a.count)
       .slice(0, 5);
   }, [transactions]);
-
-  const getBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = error => reject(error);
-    });
-  }
-
-  const addProduct = async (productData: ProductFormValues) => {
-    try {
-      let imageUrl = 'https://placehold.co/400x300';
-      if (productData.image && productData.image.length > 0) {
-        imageUrl = await getBase64(productData.image[0]);
-      }
-      
-      const newProduct: Product = {
-        id: new Date().getTime().toString(),
-        name: productData.name,
-        stock: productData.stock,
-        purchasePrice: productData.purchasePrice,
-        sellingPrice: productData.sellingPrice,
-        compatibility: productData.compatibility,
-        imageUrl,
-        lastPurchaseDate: productData.lastPurchaseDate,
-        createdAt: new Date(),
-      };
   
-      setProducts(prevProducts => [newProduct, ...prevProducts]);
-      
-      toast({
-        title: "Ürün Eklendi",
-        description: `${productData.name} başarıyla eklendi.`,
-      });
-
+  const login = async (email: string, pass: string): Promise<boolean> => {
+    try {
+      await signInWithEmailAndPassword(auth, email, pass);
+      toast({ title: 'Giriş Başarılı', description: 'Panele hoş geldiniz.' });
+      return true;
     } catch (error) {
-      console.error("Error adding product: ", error);
+      console.error('Login error:', error);
       toast({
-        title: "Hata",
-        description: "Ürün eklenirken bir hata oluştu.",
+        title: 'Giriş Başarısız',
+        description: 'E-posta veya şifre hatalı.',
+        variant: 'destructive',
+      });
+      return false;
+    }
+  };
+
+  const logout = async () => {
+    try {
+      await signOut(auth);
+      toast({ title: 'Çıkış Yapıldı', description: 'Güvenle çıkış yaptınız.' });
+    } catch (error) {
+      console.error('Logout error:', error);
+      toast({
+        title: 'Hata',
+        description: 'Çıkış yaparken bir sorun oluştu.',
         variant: 'destructive',
       });
     }
   };
 
-  const updateProduct = async (productId: string, productData: ProductFormValues) => {
-     try {
-        let imageUrl: string | undefined = undefined;
-        if (productData.image && productData.image.length > 0) {
-            imageUrl = await getBase64(productData.image[0]);
-        }
+  const getBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = (error) => reject(error);
+    });
+  };
 
-        setProducts(prev => prev.map(p => {
-            if (p.id === productId) {
-                const updatedProduct = {
-                    ...p,
-                    ...productData,
-                    lastPurchaseDate: productData.lastPurchaseDate,
-                    image: undefined, // remove image from data
-                };
-                if (imageUrl) {
-                    updatedProduct.imageUrl = imageUrl;
-                }
-                return updatedProduct;
-            }
-            return p;
-        }));
+  const uploadImage = async (file: File): Promise<string> => {
+    const storage = getStorage();
+    const storageRef = ref(storage, `products/${new Date().getTime()}_${file.name}`);
+    const base64 = await getBase64(file);
+    await uploadString(storageRef, base64, 'data_url');
+    return getDownloadURL(storageRef);
+  };
 
-        toast({
-            title: "Ürün Güncellendi",
-            description: `${productData.name} başarıyla güncellendi.`,
-        });
+  const addProduct = async (productData: ProductFormValues) => {
+    if (!firestore || !productsRef) return;
+    try {
+      let imageUrl = 'https://placehold.co/400x300';
+      if (productData.image && productData.image.length > 0) {
+        imageUrl = await uploadImage(productData.image[0]);
+      }
+
+      await addDoc(productsRef, {
+        ...productData,
+        image: undefined, // remove from data to be written
+        imageUrl,
+        createdAt: new Date(),
+      });
+
+      toast({
+        title: 'Ürün Eklendi',
+        description: `${productData.name} başarıyla eklendi.`,
+      });
     } catch (error) {
-        console.error("Error updating product: ", error);
-        toast({
-            title: "Hata",
-            description: "Ürün güncellenirken bir hata oluştu.",
-            variant: 'destructive',
-        });
+      console.error('Error adding product: ', error);
+      toast({
+        title: 'Hata',
+        description: 'Ürün eklenirken bir hata oluştu.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const updateProduct = async (
+    productId: string,
+    productData: ProductFormValues
+  ) => {
+    if (!firestore) return;
+    try {
+      const productRef = doc(firestore, 'products', productId);
+      let imageUrl: string | undefined = undefined;
+      if (productData.image && productData.image.length > 0) {
+        imageUrl = await uploadImage(productData.image[0]);
+      }
+
+      const updatedData: Partial<Product> & {image?: any} = {
+        ...productData,
+        lastPurchaseDate: productData.lastPurchaseDate,
+        image: undefined,
+      };
+
+      if (imageUrl) {
+        updatedData.imageUrl = imageUrl;
+      }
+      
+      await updateDoc(productRef, updatedData);
+
+      toast({
+        title: 'Ürün Güncellendi',
+        description: `${productData.name} başarıyla güncellendi.`,
+      });
+    } catch (error) {
+      console.error('Error updating product: ', error);
+      toast({
+        title: 'Hata',
+        description: 'Ürün güncellenirken bir hata oluştu.',
+        variant: 'destructive',
+      });
     }
   };
 
   const deleteProduct = async (productId: string) => {
-    setProducts(prev => prev.filter(p => p.id !== productId));
-    setTransactions(prev => prev.filter(t => t.productId !== productId));
-    toast({
-        title: "Ürün Silindi",
-        description: "Ürün ve ilgili tüm işlemler silindi.",
-        variant: "destructive"
-    });
+    if (!firestore) return;
+    try {
+      const productRef = doc(firestore, 'products', productId);
+      await deleteDoc(productRef);
+      // Note: Related transactions are not deleted automatically to preserve history.
+      // This could be a feature to add later if needed.
+      toast({
+        title: 'Ürün Silindi',
+        description: 'Ürün envanterden kaldırıldı.',
+        variant: 'destructive',
+      });
+    } catch (error) {
+      console.error('Error deleting product: ', error);
+      toast({
+        title: 'Hata',
+        description: 'Ürün silinirken bir sorun oluştu.',
+        variant: 'destructive',
+      });
+    }
   };
 
-  const makeSale = async (product: Product) => {
+  const makeSale = async (product: WithId<Product>) => {
+    if (!firestore || !transactionsRef) return;
     if (product.stock === 0) {
-      toast({ title: 'Stokta yok', description: 'Bu ürün stokta kalmadı.', variant: 'destructive'});
+      toast({
+        title: 'Stokta yok',
+        description: 'Bu ürün stokta kalmadı.',
+        variant: 'destructive',
+      });
       return;
     }
-    
-    setProducts(prev => prev.map(p => p.id === product.id ? { ...p, stock: p.stock - 1 } : p));
-    
-    const newTransaction: Transaction = {
-      id: new Date().getTime().toString(),
-      type: 'Satış',
-      productId: product.id,
-      productName: product.name,
-      dateTime: new Date(),
-      quantity: 1,
-      amount: product.sellingPrice,
-    };
-    setTransactions(prev => [newTransaction, ...prev]);
 
-    toast({
-      title: "Satış Başarılı",
-      description: `${product.name} ürününden 1 adet satıldı.`,
-    });
+    try {
+      const productRef = doc(firestore, 'products', product.id);
+      
+      const batch = writeBatch(firestore);
+      batch.update(productRef, { stock: product.stock - 1 });
+      
+      const newTransaction: Transaction = {
+        type: 'Satış',
+        productId: product.id,
+        productName: product.name,
+        dateTime: new Date(),
+        quantity: 1,
+        amount: product.sellingPrice,
+      };
+      
+      const transRef = doc(transactionsRef);
+      batch.set(transRef, newTransaction);
+      
+      await batch.commit();
+
+      toast({
+        title: 'Satış Başarılı',
+        description: `${product.name} ürününden 1 adet satıldı.`,
+      });
+    } catch (error) {
+       console.error('Error making sale: ', error);
+       toast({
+        title: 'Hata',
+        description: 'Satış işlemi sırasında bir hata oluştu.',
+        variant: 'destructive',
+      });
+    }
   };
 
-  const makeReturn = async (product: Product) => {
-    setProducts(prev => prev.map(p => p.id === product.id ? { ...p, stock: p.stock + 1 } : p));
-    
-    const newTransaction: Transaction = {
-      id: new Date().getTime().toString(),
-      type: 'İade',
-      productId: product.id,
-      productName: product.name,
-      dateTime: new Date(),
-      quantity: 1,
-      amount: -product.sellingPrice,
-    };
-    setTransactions(prev => [newTransaction, ...prev]);
+  const makeReturn = async (product: WithId<Product>) => {
+    if (!firestore || !transactionsRef) return;
+    try {
+      const productRef = doc(firestore, 'products', product.id);
 
-    toast({
-      title: "İade Başarılı",
-      description: `${product.name} ürününden 1 adet iade alındı.`,
-      variant: 'destructive',
-    });
+      const batch = writeBatch(firestore);
+      batch.update(productRef, { stock: product.stock + 1 });
+
+      const newTransaction: Transaction = {
+        type: 'İade',
+        productId: product.id,
+        productName: product.name,
+        dateTime: new Date(),
+        quantity: 1,
+        amount: -product.sellingPrice,
+      };
+      const transRef = doc(transactionsRef);
+      batch.set(transRef, newTransaction);
+      
+      await batch.commit();
+
+      toast({
+        title: 'İade Başarılı',
+        description: `${product.name} ürününden 1 adet iade alındı.`,
+        variant: 'destructive',
+      });
+    } catch (error) {
+       console.error('Error making return: ', error);
+       toast({
+        title: 'Hata',
+        description: 'İade işlemi sırasında bir hata oluştu.',
+        variant: 'destructive',
+      });
+    }
   };
 
-  const loadBackup = (data: BackupData) => {
-    // It's a good practice to validate the data, but we'll keep it simple for now
-    setProducts(data.products || []);
-    setTransactions(data.transactions.map((t: any) => ({...t, dateTime: new Date(t.dateTime)})) || []);
-    toast({
-        title: "Yedek Yüklendi",
-        description: "Verileriniz yedek dosyasından başarıyla yüklendi.",
-    });
+  const loadBackup = async (data: BackupData) => {
+    if (!firestore) {
+        toast({
+            title: "Hata",
+            description: "Veritabanı bağlantısı kurulamadı.",
+            variant: "destructive",
+        });
+        return;
+    }
+    
+    try {
+        const batch = writeBatch(firestore);
+
+        if(data.products && productsRef){
+            data.products.forEach(product => {
+                const docRef = doc(productsRef);
+                // Ensure dates are converted to Timestamps
+                const productData = {
+                  ...product,
+                  createdAt: new Date(product.createdAt),
+                  lastPurchaseDate: new Date(product.lastPurchaseDate),
+                };
+                batch.set(docRef, productData);
+            });
+        }
+
+        if(data.transactions && transactionsRef){
+            data.transactions.forEach(transaction => {
+                const docRef = doc(transactionsRef);
+                const transactionData = {
+                  ...transaction,
+                  dateTime: new Date(transaction.dateTime),
+                }
+                batch.set(docRef, transactionData);
+            });
+        }
+        
+        await batch.commit();
+
+        toast({
+            title: "Yedek Yüklendi",
+            description: "Verileriniz veritabanına başarıyla yüklendi.",
+        });
+
+    } catch (error) {
+        console.error("Yedek yükleme hatası:", error);
+        toast({
+          title: "Hata",
+          description: "Yedek dosyası veritabanına yüklenirken bir hata oluştu.",
+          variant: "destructive",
+        });
+    }
   };
 
   const value: AppContextType = {
     products,
     transactions,
     loading,
+    user,
+    isUserLoading,
     summaryData,
     totalStock,
     groupedTransactions,
     topSellingProducts,
     topReturningProducts,
+    login,
+    logout,
     addProduct,
     updateProduct,
     deleteProduct,
@@ -324,7 +490,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
-}
+};
 
 export const useAppContext = () => {
   const context = useContext(AppContext);

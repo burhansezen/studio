@@ -2,10 +2,12 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { Car, LayoutDashboard, ShoppingCart, Archive } from 'lucide-react';
+import { Car, LayoutDashboard, ShoppingCart, Archive, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { useAppContext } from '@/context/AppContext';
+import { useEffect } from 'react';
 
 const navItems = [
   { href: '/dashboard', label: 'Panel Özeti', icon: LayoutDashboard },
@@ -15,6 +17,7 @@ const navItems = [
 
 function PageHeader() {
   const pathname = usePathname();
+  const { logout } = useAppContext();
 
   return (
     <header className="sticky top-0 z-10 flex h-16 items-center justify-between gap-4 border-b bg-background/80 px-4 backdrop-blur-sm sm:px-6 md:px-8">
@@ -52,6 +55,14 @@ function PageHeader() {
             </Link>
           </Button>
         ))}
+         <Button
+            onClick={logout}
+            variant={'ghost'}
+            className="font-headline"
+          >
+            <LogOut className="mr-2 h-4 w-4" />
+            Çıkış Yap
+          </Button>
       </nav>
     </header>
   );
@@ -67,6 +78,22 @@ export default function MainLayout({
   children: React.ReactNode;
 }) {
   const bgImage = PlaceHolderImages.find((p) => p.id === 'logo-background');
+  const { user, isUserLoading } = useAppContext();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isUserLoading && !user) {
+      router.push('/login');
+    }
+  }, [user, isUserLoading, router]);
+
+  if (isUserLoading || !user) {
+    return (
+        <div className="flex items-center justify-center h-screen">
+            Yükleniyor...
+        </div>
+    )
+  }
   
   return (
       <div className="relative min-h-screen">
