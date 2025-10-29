@@ -16,6 +16,11 @@ type ProductCount = {
   count: number;
 };
 
+type BackupData = {
+  products: Product[];
+  transactions: Transaction[];
+}
+
 type AppContextType = {
   products: Product[];
   transactions: Transaction[];
@@ -33,6 +38,7 @@ type AppContextType = {
   deleteProduct: (productId: string) => Promise<void>;
   makeSale: (product: Product) => Promise<void>;
   makeReturn: (product: Product) => Promise<void>;
+  loadBackup: (data: BackupData) => void;
 };
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -290,6 +296,16 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
+  const loadBackup = (data: BackupData) => {
+    // It's a good practice to validate the data, but we'll keep it simple for now
+    setProducts(data.products || []);
+    setTransactions(data.transactions.map((t: any) => ({...t, dateTime: new Date(t.dateTime)})) || []);
+    toast({
+        title: "Yedek Yüklendi",
+        description: "Verileriniz yedek dosyasından başarıyla yüklendi.",
+    });
+  };
+
   const value: AppContextType = {
     products,
     transactions,
@@ -304,6 +320,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     deleteProduct,
     makeSale,
     makeReturn,
+    loadBackup,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
