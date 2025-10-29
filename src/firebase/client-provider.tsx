@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, type ReactNode } from 'react';
 import { initializeApp, type FirebaseApp } from 'firebase/app';
-import { getAuth, type Auth } from 'firebase/auth';
+import { getAuth, type Auth, signInAnonymously } from 'firebase/auth';
 import { getFirestore, type Firestore } from 'firebase/firestore';
 import { FirebaseProvider } from '@/firebase/provider';
 
@@ -37,6 +37,10 @@ export function initializeFirebase(): FirebaseServices {
   firebaseApp = newFirebaseApp;
   auth = newAuth;
   firestore = newFirestore;
+  
+  signInAnonymously(newAuth).catch((error) => {
+    console.error("Anonymous sign-in failed:", error);
+  });
 
   return { firebaseApp, auth, firestore };
 }
@@ -58,7 +62,11 @@ export function FirebaseClientProvider({
   }, []);
 
   if (!firebaseServices) {
-    return <div>Yükleniyor...</div>;
+    return (
+        <div className="flex items-center justify-center h-screen">
+             Yükleniyor...
+        </div>
+    );
   }
 
   return (

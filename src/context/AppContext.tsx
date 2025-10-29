@@ -28,9 +28,6 @@ import {
   useMemoFirebase,
 } from '@/firebase/provider';
 import {
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signOut,
   User,
   AuthError,
 } from 'firebase/auth';
@@ -66,8 +63,6 @@ type AppContextType = {
   groupedTransactions: GroupedTransactions;
   topSellingProducts: ProductCount[];
   topReturningProducts: ProductCount[];
-  login: (email: string, pass: string) => Promise<boolean>;
-  logout: () => Promise<void>;
   addProduct: (productData: ProductFormValues) => Promise<void>;
   updateProduct: (
     productId: string,
@@ -84,7 +79,6 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export const AppProvider = ({ children }: { children: ReactNode }) => {
   const { toast } = useToast();
   const firestore = useFirestore();
-  const auth = useAuth();
   const { user, isUserLoading } = useUser();
 
   const productsRef = useMemoFirebase(
@@ -238,64 +232,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       .slice(0, 5);
   }, [transactions]);
 
-  const login = async (email: string, pass: string): Promise<boolean> => {
-    if (!auth) {
-      toast({
-        title: 'Hata',
-        description: 'Kimlik doğrulama hizmeti hazır değil.',
-        variant: 'destructive',
-      });
-      return false;
-    }
-    try {
-      await signInWithEmailAndPassword(auth, email, pass);
-      toast({ title: 'Giriş Başarılı', description: 'Panele hoş geldiniz.' });
-      return true;
-    } catch (error: any) {
-      if (error.code === 'auth/user-not-found') {
-        // User does not exist, so create a new user
-        try {
-          await createUserWithEmailAndPassword(auth, email, pass);
-          toast({
-            title: 'Kullanıcı Oluşturuldu ve Giriş Yapıldı',
-            description: 'Panele hoş geldiniz.',
-          });
-          return true;
-        } catch (createError) {
-          console.error('Sign up error:', createError);
-          toast({
-            title: 'Kayıt Başarısız',
-            description: 'Yeni kullanıcı oluşturulurken bir hata oluştu.',
-            variant: 'destructive',
-          });
-          return false;
-        }
-      } else {
-        console.error('Login error:', error);
-        toast({
-          title: 'Giriş Başarısız',
-          description: 'E-posta veya şifre hatalı.',
-          variant: 'destructive',
-        });
-        return false;
-      }
-    }
-  };
-
-  const logout = async () => {
-    if (!auth) return;
-    try {
-      await signOut(auth);
-      toast({ title: 'Çıkış Yapıldı', description: 'Güvenle çıkış yaptınız.' });
-    } catch (error) {
-      console.error('Logout error:', error);
-      toast({
-        title: 'Hata',
-        description: 'Çıkış yaparken bir sorun oluştu.',
-        variant: 'destructive',
-      });
-    }
-  };
 
   const getBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -552,8 +488,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     groupedTransactions,
     topSellingProducts,
     topReturningProducts,
-    login,
-    logout,
     addProduct,
     updateProduct,
     deleteProduct,
