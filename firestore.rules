@@ -1,52 +1,67 @@
 /**
- * @fileoverview Firestore Security Rules for Auto Accessory App
+ * @fileoverview Firestore Security Rules for auto accessory products and transactions.
  *
  * Core Philosophy:
- * This ruleset enforces a security model where all authenticated users have read access to product and transaction data,
- * but write access is completely denied to all users.
+ * This ruleset adopts a public read with owner-only writes pattern for both products and transactions,
+ * allowing anyone to read product details and transaction records while restricting creation, updates,
+ * and deletions to authenticated users only.
  *
  * Data Structure:
- * The database consists of two top-level collections: `/products/{productId}` and `/transactions/{transactionId}`.
+ * The Firestore database consists of two top-level collections: `products` and `transactions`.
+ *  - `/products/{productId}`: Stores product information.
+ *  - `/transactions/{transactionId}`: Stores transaction details related to sales and returns.
  *
  * Key Security Decisions:
- * - All authenticated users can read the entire product catalog and transaction history.
- * - No users can create, update, or delete products or transactions.
+ * - Products and Transactions are readable by anyone (unauthenticated or authenticated).
+ * - Only authenticated users can create, update, or delete products and transactions.
+ * - There is no concept of user-specific ownership or roles.
+ *
+ * Denormalization for Authorization:
+ *  - Products and transactions are assumed to have an `ownerId` field.  The rules enforce that the
+ *    `ownerId` matches the authenticated user's `uid` for write operations.
+ *    In other words, documents are secured based on an `ownerId` field within the documents.
+ *
+ * Structural Segregation:
+ *  - All data is stored in top-level collections, with no user-specific subcollections.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Grants read access to all products, but restricts write access.
+     * @description Allows anyone to read product details, but restricts creation, updates, and deletions to authenticated users.
      * @path /products/{productId}
-     * @allow (get, list): Any authenticated user can read product details.
-     * @deny (create, update, delete): No user can modify product information.
-     * @principle Allows open reads, denies writes.
+     * @allow (get, list): Any user can read product details.
+     * @allow (create): Only authenticated users can create products if ownerId matches the user's UID.
+     * @allow (update, delete): Only the authenticated owner can update or delete a product.
+     * @deny (create): Unauthenticated users cannot create products.
+     * @deny (update): Non-owners cannot update products.
+     * @deny (delete): Non-owners cannot delete products.
+     * @principle Enforces public read access with owner-only write access for products.
      */
     match /products/{productId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow get, list: if true;
+      allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
+      allow update, delete: if isSignedIn() && resource.data.ownerId == request.auth.uid && resource != null;
     }
 
     /**
-     * @description Grants read access to all transactions, but restricts write access.
+     * @description Allows anyone to read transaction records, but restricts creation, updates, and deletions to authenticated users.
      * @path /transactions/{transactionId}
-     * @allow (get, list): Any authenticated user can read transaction details.
-     * @deny (create, update, delete): No user can modify transaction information.
-     * @principle Allows open reads, denies writes.
+     * @allow (get, list): Any user can read transaction records.
+     * @allow (create): Only authenticated users can create transactions if ownerId matches the user's UID.
+     * @allow (update, delete): Only the authenticated owner can update or delete a transaction.
+     * @deny (create): Unauthenticated users cannot create transactions.
+     * @deny (update): Non-owners cannot update transactions.
+     * @deny (delete): Non-owners cannot delete transactions.
+     * @principle Enforces public read access with owner-only write access for transactions.
      */
     match /transactions/{transactionId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow get, list: if true;
+      allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
+      allow update, delete: if isSignedIn() && resource.data.ownerId == request.auth.uid && resource != null;
     }
 
-    // Helper function to determine if the user is signed in
     function isSignedIn() {
       return request.auth != null;
     }

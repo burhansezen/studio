@@ -51,8 +51,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const firestore = useFirestore();
   const auth = useAuth();
   
-  const productsRef = useMemoFirebase(() => firestore ? collection(firestore, 'products') : null, [firestore]);
-  const transactionsRef = useMemoFirebase(() => firestore ? collection(firestore, 'transactions') : null, [firestore]);
+  const productsRef = useMemoFirebase(() => (firestore && user) ? collection(firestore, 'products') : null, [firestore, user]);
+  const transactionsRef = useMemoFirebase(() => (firestore && user) ? collection(firestore, 'transactions') : null, [firestore, user]);
 
   const { data: productsData, isLoading: productsLoading } = useCollection<Product>(productsRef);
   const { data: transactionsData, isLoading: transactionsLoading } = useCollection<Transaction>(transactionsRef);
@@ -212,7 +212,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const deleteProduct = async (productId: string) => {
-    if (!firestore) return;
+    if (!firestore || !transactionsRef) return;
     try {
         const productToDelete = products.find(p => p.id === productId);
         if (!productToDelete) return;
@@ -362,3 +362,5 @@ export const useAppContext = () => {
   }
   return context;
 };
+
+    
