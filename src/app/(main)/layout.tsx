@@ -3,7 +3,7 @@
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Car, LayoutDashboard, ShoppingCart, Archive, LogOut, Loader2 } from 'lucide-react';
+import { Car, LayoutDashboard, ShoppingCart, Archive, LogOut, Loader2, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { useAppContext } from '@/context/AppContext';
@@ -56,9 +56,11 @@ function PageHeader() {
           </Button>
         ))}
       </nav>
-       <Button variant="outline" size="sm" onClick={logout}>
-          <LogOut className="mr-2 h-4 w-4" />
-          Çıkış Yap
+       <Button variant="outline" size="sm" asChild>
+          <Link href="/login">
+            <LogIn className="mr-2 h-4 w-4" />
+            Giriş
+          </Link>
         </Button>
     </header>
   );
