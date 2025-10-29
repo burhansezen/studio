@@ -86,7 +86,7 @@ export default function LoginPage() {
                   <FormItem>
                     <FormLabel>Kullanıcı Adı (E-posta)</FormLabel>
                     <FormControl>
-                      <Input placeholder="szn@szn.com" {...field} />
+                      <Input placeholder="SZN@szn.com" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -115,3 +115,5 @@ export default function LoginPage() {
     </div>
   );
 }
+
+    

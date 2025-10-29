@@ -104,7 +104,7 @@ const AppContextProviderContent = ({ children }: { children: ReactNode }) => {
   
   // Create user on first load
   useEffect(() => {
-    const initialEmail = 'szn@szn.com';
+    const initialEmail = 'SZN@szn.com';
     const initialPassword = '331742';
     
     if (isUserLoading) return;
@@ -510,3 +510,5 @@ export const useAppContext = () => {
   }
   return context;
 };
+
+    
