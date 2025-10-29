@@ -2,6 +2,9 @@
 # https://firebase.google.com/docs/app-hosting/configure
 
 runConfig:
+  # Minimum resources for the backend. This aligns with the "Spark" plan.
+  cpu: 1
+  memoryMiB: 512
   # Increase this value if you'd like to automatically spin up
   # more instances in response to increased traffic.
   maxInstances: 1
