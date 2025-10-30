@@ -4,8 +4,8 @@ import { Toaster } from '@/components/ui/toaster';
 import { AppProvider } from '@/context/AppContext';
 
 export const metadata: Metadata = {
-  title: 'SZN Auto Manager',
-  description: 'Oto aksesuar dükkanı yönetim paneli',
+  title: 'Dashboard | Satış ve Envanter Paneli',
+  description: 'Satış ve envanter yönetimi paneli',
   icons: [{ rel: 'icon', url: 'data:;base64,iVBORw0KGgo=' }],
 };
 

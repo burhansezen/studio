@@ -53,9 +53,56 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {
   const { toast } = useToast();
-  const [products, setProducts] = useState<Product[]>(initialProducts);
-  const [transactions, setTransactions] = useState<Transaction[]>(initialTransactions);
-  const [loading, setLoading] = useState({ products: false, transactions: false });
+  const [products, setProducts] = useState<Product[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState({ products: true, transactions: true });
+
+  useEffect(() => {
+    try {
+      const storedProducts = localStorage.getItem('products');
+      const storedTransactions = localStorage.getItem('transactions');
+
+      if (storedProducts) {
+        setProducts(JSON.parse(storedProducts, (key, value) => {
+           if (key === 'createdAt' || key === 'lastPurchaseDate') {
+                return new Date(value);
+            }
+            return value;
+        }));
+      } else {
+        setProducts(initialProducts);
+      }
+
+      if (storedTransactions) {
+        setTransactions(JSON.parse(storedTransactions, (key, value) => {
+            if (key === 'dateTime') {
+                return new Date(value);
+            }
+            return value;
+        }));
+      } else {
+        setTransactions(initialTransactions);
+      }
+    } catch (error) {
+        console.error("Failed to load data from localStorage", error);
+        setProducts(initialProducts);
+        setTransactions(initialTransactions);
+    } finally {
+        setLoading({ products: false, transactions: false });
+    }
+  }, []);
+
+  useEffect(() => {
+    if(!loading.products){
+      localStorage.setItem('products', JSON.stringify(products));
+    }
+  }, [products, loading.products]);
+
+  useEffect(() => {
+    if(!loading.transactions){
+      localStorage.setItem('transactions', JSON.stringify(transactions));
+    }
+  }, [transactions, loading.transactions]);
 
   const toDate = (date: string | Date): Date => {
     return new Date(date);
