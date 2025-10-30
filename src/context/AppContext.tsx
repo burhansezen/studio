@@ -53,9 +53,65 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {
   const { toast } = useToast();
-  const [products, setProducts] = useState<Product[]>(initialProducts);
-  const [transactions, setTransactions] = useState<Transaction[]>(initialTransactions);
+  const [products, setProducts] = useState<Product[]>(() => {
+    if (typeof window === 'undefined') {
+      return initialProducts;
+    }
+    try {
+      const savedProducts = window.localStorage.getItem('products');
+      if (savedProducts) {
+        // Dates are stored as strings in JSON, so we need to convert them back.
+        return JSON.parse(savedProducts).map((p: Product) => ({
+          ...p,
+          createdAt: new Date(p.createdAt),
+        }));
+      }
+    } catch (error) {
+      console.error('Error loading products from localStorage:', error);
+    }
+    return initialProducts;
+  });
+
+  const [transactions, setTransactions] = useState<Transaction[]>(() => {
+    if (typeof window === 'undefined') {
+      return initialTransactions;
+    }
+    try {
+      const savedTransactions = window.localStorage.getItem('transactions');
+      if (savedTransactions) {
+        // Dates are stored as strings in JSON, so we need to convert them back.
+        return JSON.parse(savedTransactions).map((t: Transaction) => ({
+          ...t,
+          dateTime: new Date(t.dateTime),
+        }));
+      }
+    } catch (error) {
+      console.error('Error loading transactions from localStorage:', error);
+    }
+    return initialTransactions;
+  });
+
   const [loading, setLoading] = useState({ products: false, transactions: false });
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        window.localStorage.setItem('products', JSON.stringify(products));
+      } catch (error) {
+        console.error('Error saving products to localStorage:', error);
+      }
+    }
+  }, [products]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        window.localStorage.setItem('transactions', JSON.stringify(transactions));
+      } catch (error) {
+        console.error('Error saving transactions to localStorage:', error);
+      }
+    }
+  }, [transactions]);
 
   const toDate = (date: string | Date): Date => {
     return new Date(date);
@@ -153,13 +209,28 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       .slice(0, 5);
   }, [transactions]);
 
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = error => reject(error);
+    });
+  };
+
   const addProduct = useCallback(async (productData: ProductFormValues) => {
+    let imageUrl = 'https://placehold.co/400x300';
+    if (productData.image && productData.image[0]) {
+      imageUrl = await fileToBase64(productData.image[0]);
+    }
+
     const newProduct: Product = {
-      id: new Date().getTime().toString(), // Simple unique ID
+      id: crypto.randomUUID(),
       ...productData,
-      imageUrl: productData.image ? URL.createObjectURL(productData.image[0]) : 'https://placehold.co/400x300',
+      imageUrl,
       createdAt: new Date(),
     };
+
     setProducts(prev => [newProduct, ...prev]);
     toast({
       title: 'Ürün Eklendi',
@@ -171,12 +242,17 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     productId: string,
     productData: ProductFormValues
   ) => {
+    let imageUrl: string | undefined;
+    if (productData.image && productData.image.length > 0) {
+      imageUrl = await fileToBase64(productData.image[0]);
+    }
+
     setProducts(prev => prev.map(p => {
       if (p.id === productId) {
         return {
           ...p,
           ...productData,
-          imageUrl: productData.image && productData.image.length > 0 ? URL.createObjectURL(productData.image[0]) : p.imageUrl,
+          imageUrl: imageUrl || p.imageUrl,
         };
       }
       return p;
@@ -211,7 +287,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     ));
 
     const newTransaction: Transaction = {
-      id: new Date().getTime().toString(),
+      id: crypto.randomUUID(),
       type: 'Satış',
       productId: product.id,
       productName: product.name,
@@ -233,7 +309,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     ));
 
     const newTransaction: Transaction = {
-      id: new Date().getTime().toString(),
+      id: crypto.randomUUID(),
       type: 'İade',
       productId: product.id,
       productName: product.name,
